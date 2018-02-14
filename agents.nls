@@ -1,9 +1,9 @@
 buses-own [
-  ; Static, read-only variables. These values never change. You can read them, but you cannot change them.
+  ; Static read-only variables. These values never change. You can read them but you cannot change them.
   bus_id          ; The ID of a given agent (bus). Each agent has a unique ID.
-  bus_type        ; The type of a given agent (bus). 1 means "small", 2 means "medium" and 3 means "large".
+  bus_type        ; The type of a given agent (bus). 1 means "small" 2 means "medium" and 3 means "large".
     
-  ; Dynamic, read-only variables. These values may change over time. You can read them, but you cannot change them.
+  ; Dynamic read-only variables. These values may change over time. You can read them but you cannot change them.
   inbox           ; List containing all the incoming messages (a given message is a list like this [tick sender message]).
   bus_passengers  ; List containing all the passengers that the agent (bus) is currently carrying (represented as a list like this [passenger_id bus_stop]).
   previous_stop   ; ID of the last bus stop that the agent (bus) visited (-1 means that the agent has not visited any bus stop yet).
@@ -11,8 +11,9 @@ buses-own [
   next_stop       ; ID of the bus stop the agent (bus) is traveling to (-1 means that the agent is not travelling to any bus stop).
   beliefs
   list-bus-stops
+  busschedule
+  returning
   
-
   ; New local variables for students.
   ; You can create any new local variable you want. Just declare them here.
 
@@ -23,8 +24,11 @@ globals [graph]
 to init-buses
   ; Initialize your agents here.
   init-beliefs
-
-  ; This list contains the topology of the entire network of bus stops, which is known to all agents. You can use this, for instance, to calculate the shortest path between two bus stops.
+  init-busschedule
+  
+  set returning false
+  
+  ; This list contains the topology of the entire network of bus stops which is known to all agents. You can use this for instance to calculate the shortest path between two bus stops.
   set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
   ifelse bus_id = 24 
   [
@@ -46,9 +50,16 @@ to init-buses
   [
     init-line-62
   ][
-  init-line-65
-  ]]]]]
-  
+  ifelse bus_id = 29
+  [
+    init-line-42
+  ][
+  init-line-45
+  ]]]]]]
+end
+
+to init-busschedule
+  set busschedule [[16 5 17 7 1 23] [16 3 9 20 12] [2 8 3 8 6] [0 15 18 15 12] [11 1 19 23 14 0] [3 4 10 21 22 0] [3 4 10 13 23]]
 end
 
 to init-beliefs
@@ -61,6 +72,43 @@ to execute-actions
   ; Add decision making strategies for your agents here.
   ; You are allowed to use the global variable 'ticks'
   update-beliefs
+  let schedule item (bus_id - 24) busschedule
+  ifelse current_stop = -1 [
+    ;driving
+    travel-to next_stop
+  ][
+  ;arrived at busstop
+  ;kick passengers out
+  ;get new passengers in
+  ;set next stop
+  let cur_pos position current_stop schedule
+  ;account for double busstop in schedule
+  
+  
+  let next_pos -1
+  ifelse returning 
+  [
+    set next_pos cur_pos - 1
+  ][
+    set next_pos cur_pos + 1 
+  ]
+  if next_pos > (length schedule) - 1
+  [
+    set returning true
+    set next_pos next_pos - 2
+  ]
+  if next_pos < 0 [
+    set returning false
+    set next_pos 1
+  ]
+  ;start moving
+  ;show current_stop
+  ;show next_pos
+  ;show item next_pos schedule
+  travel-to item next_pos schedule 
+  ]
+  
+  
 end
 
 to update-beliefs
@@ -69,15 +117,15 @@ to update-beliefs
 end
 
 to init-line-15
-  set current_stop 1
-  set xcor 11
-  set ycor 4
+  set current_stop 16
+  set xcor 6
+  set ycor 26
 end
 
 to init-line-22
-  set current_stop 3
-  set xcor 22
-  set ycor 21
+  set current_stop 12
+  set xcor 31
+  set ycor 13
 end
 
 to init-line-34
@@ -87,19 +135,25 @@ to init-line-34
 end
 
 to init-line-40
-  set current_stop 12
+  set current_stop 0
+  set xcor 27
+  set ycor 7
+end
+
+to init-line-62
+  set current_stop 11
   set xcor 4
   set ycor 12
 end
 
-to init-line-62
-  set current_stop 14
-  set xcor 17
-  set ycor 11
+to init-line-42
+  set current_stop 3
+  set xcor 22
+  set ycor 21
 end
 
-to init-line-65
+to init-line-45
   set current_stop 23
-  set xcor 15
+  set xcor 14
   set ycor 4
 end

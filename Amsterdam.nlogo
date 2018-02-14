@@ -485,7 +485,7 @@ to add-buses
 
   foreach leasing_list [
     let bt ?
-    create-buses 6 [
+    create-buses 7 [
       let cost 0
       set bus_type bt
       ifelse bus_type = 1
