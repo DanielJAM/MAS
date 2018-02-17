@@ -154,6 +154,6 @@ end
 
 to init-line-45
   set current_stop 23
-  set xcor 14
+  set xcor 15
   set ycor 4
 end
