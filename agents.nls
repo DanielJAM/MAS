@@ -37,26 +37,54 @@ to init-buses
   ][
   ifelse bus_id = 25 
   [
-    init-line-22
+    init-line-15-rev
   ][
   ifelse bus_id = 26
   [
-    init-line-34
+    init-line-22
   ][
   ifelse bus_id = 27
   [
-    init-line-40    
+    init-line-22-rev   
   ][
   ifelse bus_id = 28
   [
-    init-line-62
+    init-line-34
   ][
   ifelse bus_id = 29
   [
+    init-line-34-rev
+  ][
+  ifelse bus_id = 30
+  [
+    init-line-40
+  ][
+  ifelse bus_id = 31
+  [
+    init-line-40-rev
+  ][
+  ifelse bus_id = 32
+  [
+    init-line-62
+  ][
+  ifelse bus_id = 33
+  [
+    init-line-62-rev  
+  ][
+  ifelse bus_id = 34
+  [
     init-line-42
   ][
-  init-line-45
-  ]]]]]]
+  ifelse bus_id = 35
+  [
+    init-line-42-rev
+  ][
+  ifelse bus_id = 36
+  [
+    init-line-45
+  ][
+  init-line-45-rev
+  ]]]]]]]]]]]]]
 end
 
 to init-busschedule
@@ -73,7 +101,8 @@ to execute-actions
   ; Add decision making strategies for your agents here.
   ; You are allowed to use the global variable 'ticks'
   update-beliefs
-  let schedule item (bus_id - 24) busschedule
+  let tmp round bus_id / 2
+  let schedule item (tmp - 12) busschedule
   ifelse current_stop = -1 [
     ;driving
     travel-to next_stop
@@ -84,11 +113,29 @@ to execute-actions
     let pass_id item 0 ?1
     let des item 1 ?1
     
-    if des = current_stop
+    ifelse des = current_stop
     [
       ;uitstappen
       drop-off-passenger pass_id
       set amount_passengers_dropped amount_passengers_dropped + 1
+    ][
+      let found false
+      if not (member? des schedule)[
+        foreach busschedule [
+          let schl ?1
+          if member? current_stop schl and member? des schl and found = false[
+            ;overstappen
+            set found true
+            drop-off-passenger pass_id
+          ]
+        ]
+      ]
+      if found = false [
+        ;wtf moeten we met deze persoon?
+        if random 2 = 1 [
+          drop-off-passenger pass_id         
+        ]
+      ]
     ]
   ]
   ;get new passengers in
@@ -99,7 +146,9 @@ to execute-actions
     ;des is in schedule
     ifelse member? des schedule 
     [
-      pick-up-passenger pass_id
+      if (length bus_passengers) < 150[
+        pick-up-passenger pass_id
+      ]
     ][
       ;other lines pass this bus-stop?
       foreach busschedule [
@@ -116,12 +165,18 @@ to execute-actions
         foreach schedule [
           let check ?1
           foreach busschedule[
-            if member? check ?1[
-              if member? des ?1 and found = false[
+            if member? check ?1 and member? des ?1 and found = false[
+              if (length bus_passengers) < 150[
                 pick-up-passenger pass_id         
                 set found true               
               ]
             ]
+          ]
+        ]
+        if found != true[
+          ;no clue what to do, pick the guy up.. see what happends.
+          if (length bus_passengers) < 150 and random 2 = 1[
+            pick-up-passenger pass_id    
           ]
         ]
       ]
@@ -161,9 +216,25 @@ to init-line-15
   set ycor 26
 end
 
+to init-line-15-rev
+  set current_stop 23
+  set cur_pos 5
+  set returning true
+  set xcor 15
+  set ycor 4
+end
+
 to init-line-22
+  set current_stop 16
+  set cur_pos 0
+  set xcor 6
+  set ycor 26
+end
+
+to init-line-22-rev
   set current_stop 12
   set cur_pos 4
+  set returning true
   set xcor 31
   set ycor 13
 end
@@ -175,11 +246,27 @@ to init-line-34
   set ycor 30
 end
 
+to init-line-34-rev
+  set current_stop 6
+  set cur_pos 6
+  set returning true
+  set xcor 25
+  set ycor 30
+end
+
 to init-line-40
   set current_stop 0
   set cur_pos 0
   set xcor 27
   set ycor 7
+end
+
+to init-line-40-rev
+  set current_stop 12
+  set cur_pos 4
+  set returning true
+  set xcor 31
+  set ycor 13
 end
 
 to init-line-62
@@ -189,6 +276,14 @@ to init-line-62
   set ycor 12
 end
 
+to init-line-62-rev
+  set current_stop 0
+  set cur_pos 5
+  set returning true
+  set xcor 27
+  set ycor 7
+end
+
 to init-line-42
   set current_stop 3
   set cur_pos 0
@@ -196,9 +291,25 @@ to init-line-42
   set ycor 21
 end
 
+to init-line-42-rev
+  set current_stop 0
+  set cur_pos 5
+  set returning true
+  set xcor 27
+  set ycor 7
+end
+
 to init-line-45
+  set current_stop 3
+  set cur_pos 0
+  set xcor 22
+  set ycor 21
+end
+
+to init-line-45-rev
   set current_stop 23
   set cur_pos 4
+  set returning true
   set xcor 15
   set ycor 4
 end

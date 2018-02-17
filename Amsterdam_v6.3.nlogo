@@ -486,7 +486,7 @@ to add-buses
 
   foreach leasing_list [
     let bt ?
-    create-buses 7 [
+    create-buses 14 [
       let cost 0
       set bus_type bt
       set bus_type 3
@@ -1030,7 +1030,7 @@ MONITOR
 1339
 505
 1564
-551
+550
 Number of passengers dropped
 amount_passengers_dropped
 2
