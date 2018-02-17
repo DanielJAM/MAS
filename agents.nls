@@ -92,8 +92,6 @@ to execute-actions
     ]
   ]
   ;get new passengers in
-  let local_connections []
-  set local_connections lput schedule local_connections
   let _wait false
   foreach get-passengers-at-stop current_stop[
     let pass_id item 0 ?1
@@ -106,20 +104,25 @@ to execute-actions
       ;other lines pass this bus-stop?
       foreach busschedule [
         let schl ?1
-        ifelse (member? des schl and member? current_stop schl)
+        if (member? des schl and member? current_stop schl)
         [
           ;wait for other bus.
           set _wait true
-        ][
-        if member? current_stop schl[
-          set local_connections lput schl local_connections
-        ]
         ]
       ]
       if _wait != true[
         ;transfer!
-        foreach local_connections [
-          let schl ?1          
+        let found false
+        foreach schedule [
+          let check ?1
+          foreach busschedule[
+            if member? check ?1[
+              if member? des ?1 and found = false[
+                pick-up-passenger pass_id         
+                set found true               
+              ]
+            ]
+          ]
         ]
       ]
     ]

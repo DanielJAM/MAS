@@ -1026,6 +1026,17 @@ false
 PENS
 "default" 1.0 0 -16777216 true "" "plot amount_passengers_dropped"
 
+MONITOR
+1339
+505
+1564
+551
+Number of passengers dropped
+amount_passengers_dropped
+2
+1
+11
+
 @#$#@#$#@
 ## WHAT IS IT?
 
