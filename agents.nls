@@ -9,6 +9,7 @@ buses-own [
   previous_stop   ; ID of the last bus stop that the agent (bus) visited (-1 means that the agent has not visited any bus stop yet).
   current_stop    ; ID of the bus stop where the agent (bus) currently is (-1 means that the agent is not at any bus stop).
   next_stop       ; ID of the bus stop the agent (bus) is traveling to (-1 means that the agent is not travelling to any bus stop).
+  cur_pos
   beliefs
   list-bus-stops
   busschedule
@@ -59,7 +60,7 @@ to init-buses
 end
 
 to init-busschedule
-  set busschedule [[16 5 17 7 1 23] [16 3 9 20 12] [2 8 3 8 6] [0 15 18 15 12] [11 1 19 23 14 0] [3 4 10 21 22 0] [3 4 10 13 23]]
+  set busschedule [[16 5 17 7 1 23] [16 3 9 20 12] [2 8 9 3 9 8 6] [0 15 18 15 12] [11 1 19 23 14 0] [3 4 10 21 22 0] [3 4 10 13 23]]
 end
 
 to init-beliefs
@@ -80,35 +81,28 @@ to execute-actions
   ;arrived at busstop
   ;kick passengers out
   ;get new passengers in
-  ;set next stop
-  let cur_pos position current_stop schedule
-  ;account for double busstop in schedule
   
-  
-  let next_pos -1
   ifelse returning 
   [
-    set next_pos cur_pos - 1
+    set cur_pos cur_pos - 1
   ][
-    set next_pos cur_pos + 1 
+    set cur_pos cur_pos + 1 
   ]
-  if next_pos > (length schedule) - 1
+  if cur_pos > (length schedule) - 1
   [
     set returning true
-    set next_pos next_pos - 2
+    set cur_pos cur_pos - 2
   ]
-  if next_pos < 0 [
+  if cur_pos < 0 [
     set returning false
-    set next_pos 1
+    set cur_pos 1
   ]
   ;start moving
   ;show current_stop
   ;show next_pos
   ;show item next_pos schedule
-  travel-to item next_pos schedule 
+  travel-to item cur_pos schedule 
   ]
-  
-  
 end
 
 to update-beliefs
@@ -118,42 +112,49 @@ end
 
 to init-line-15
   set current_stop 16
+  set cur_pos 0
   set xcor 6
   set ycor 26
 end
 
 to init-line-22
   set current_stop 12
+  set cur_pos 4
   set xcor 31
   set ycor 13
 end
 
 to init-line-34
   set current_stop 2
+  set cur_pos 0
   set xcor 31
   set ycor 30
 end
 
 to init-line-40
   set current_stop 0
+  set cur_pos 0
   set xcor 27
   set ycor 7
 end
 
 to init-line-62
   set current_stop 11
+  set cur_pos 0
   set xcor 4
   set ycor 12
 end
 
 to init-line-42
   set current_stop 3
+  set cur_pos 0
   set xcor 22
   set ycor 21
 end
 
 to init-line-45
   set current_stop 23
+  set cur_pos 4
   set xcor 15
   set ycor 4
 end
