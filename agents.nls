@@ -80,7 +80,51 @@ to execute-actions
   ][
   ;arrived at busstop
   ;kick passengers out
+  foreach bus_passengers [
+    let pass_id item 0 ?1
+    let des item 1 ?1
+    
+    if des = current_stop
+    [
+      ;uitstappen
+      drop-off-passenger pass_id
+      set amount_passengers_dropped amount_passengers_dropped + 1
+    ]
+  ]
   ;get new passengers in
+  let local_connections []
+  set local_connections lput schedule local_connections
+  let _wait false
+  foreach get-passengers-at-stop current_stop[
+    let pass_id item 0 ?1
+    let des item 1 ?1
+    ;des is in schedule
+    ifelse member? des schedule 
+    [
+      pick-up-passenger pass_id
+    ][
+      ;other lines pass this bus-stop?
+      foreach busschedule [
+        let schl ?1
+        ifelse (member? des schl and member? current_stop schl)
+        [
+          ;wait for other bus.
+          set _wait true
+        ][
+        if member? current_stop schl[
+          set local_connections lput schl local_connections
+        ]
+        ]
+      ]
+      if _wait != true[
+        ;transfer!
+        foreach local_connections [
+          let schl ?1          
+        ]
+      ]
+    ]
+  ]
+  
   
   ifelse returning 
   [
@@ -98,9 +142,6 @@ to execute-actions
     set cur_pos 1
   ]
   ;start moving
-  ;show current_stop
-  ;show next_pos
-  ;show item next_pos schedule
   travel-to item cur_pos schedule 
   ]
 end
