@@ -178,11 +178,11 @@ to execute-actions
               ;TODO transfer nog een niveau dieper
               ]
             ]
-          if found != true[
-            ;no clue what to do, pick the guy up.. see what happends.
-            if (length bus_passengers) < 150 and random 2 = 1[
-              pick-up-passenger pass_id
-              ]
+          ]
+        if found = false [
+          ;wtf moeten we met deze persoon?
+          if random 2 = 1 [
+            drop-off-passenger pass_id         
             ]
           ]
         ]
