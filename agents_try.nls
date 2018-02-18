@@ -134,8 +134,8 @@ to execute-actions
         set amount_passengers_dropped amount_passengers_dropped + 1
         ]
       [
-        set transfers remove-item (trans_id_pos - 1) transfers
-        set transfers remove-item (trans_des_pos - 1) transfers
+        set transfers remove-item (trans_id_pos) transfers
+        set transfers remove-item (trans_des_pos) transfers
         ]
       ]
     [
