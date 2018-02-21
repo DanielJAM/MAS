@@ -24,7 +24,6 @@ globals [
   average_travelling_time
   expenses
   amount_passengers_waiting
-  amount_passengers_dropped
   number_of_messages
   bus_type1_price
   bus_type1_cost_per_patch
@@ -486,10 +485,9 @@ to add-buses
 
   foreach leasing_list [
     let bt ?
-    create-buses 14 [
+    create-buses 1 [
       let cost 0
       set bus_type bt
-      set bus_type 3
       ifelse bus_type = 1
       [
         set cost bus_type1_price
@@ -1005,35 +1003,6 @@ MONITOR
 NIL
 final_average_travelling_time
 17
-1
-11
-
-PLOT
-1336
-328
-1536
-478
-passengers dropped
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot amount_passengers_dropped"
-
-MONITOR
-1339
-505
-1564
-550
-Number of passengers dropped
-amount_passengers_dropped
-2
 1
 11
 
