@@ -9,29 +9,36 @@ buses-own [
   previous_stop   ; ID of the last bus stop that the agent (bus) visited (-1 means that the agent has not visited any bus stop yet).
   current_stop    ; ID of the bus stop where the agent (bus) currently is (-1 means that the agent is not at any bus stop).
   next_stop       ; ID of the bus stop the agent (bus) is traveling to (-1 means that the agent is not travelling to any bus stop).
+  
+  ; New local variables for students.
+  ; You can create any new local variable you want. Just declare them here.
   cur_pos
   beliefs
   list-bus-stops
   busschedule
   returning
   transfers
-  
-  ; New local variables for students.
-  ; You can create any new local variable you want. Just declare them here.
-
+  buses_info
+  init_bus_info
 ]
  
-globals [graph]
+globals [ 
+  graph
+  amount_passengers_dropped
+  ]
 
 to init-buses
   ; Initialize your agents here.
-  init-beliefs
-  init-busschedule
-  
-  set returning false
+  if not is-list? beliefs [init-beliefs]
+  if not is-list? busschedule [init-busschedule]
   
   ; This list contains the topology of the entire network of bus stops which is known to all agents. You can use this for instance to calculate the shortest path between two bus stops.
-  set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
+  if not is-list? graph [
+    set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
+    ]
+  
+  if not is-list? init_bus_info []
+  
   ifelse bus_id = 24 
   [
     init-line-15
@@ -116,17 +123,15 @@ to execute-actions
     let des item 1 ?1
     let trans_des -2
     let trans_des_pos -2
-    let trans_id -2
     let trans_id_pos -2
     
     if is-number? (position pass_id transfers) [
       set trans_id_pos (position pass_id transfers)
-      set trans_id (item trans_id_pos transfers)
       set trans_des_pos (trans_id_pos + 1)
       set trans_des (item trans_des_pos transfers)
       ]
     
-    ifelse des = current_stop or trans_des = current_stop
+    if des = current_stop or trans_des = current_stop
     [
       ;uitstappen
       drop-off-passenger pass_id
@@ -138,20 +143,36 @@ to execute-actions
         set transfers remove-item (trans_des_pos) transfers
         ]
       ]
+    ]
+  ]
+  
+  ;GET NEW PASSENGERS IN
+  let _wait false
+  let found false
+  foreach get-passengers-at-stop current_stop[
+    let pass_id item 0 ?1
+    let des item 1 ?1
+    ;des is in my_schedule
+    if member? des my_schedule 
     [
-      let found false
-      if not (member? des my_schedule)[
-        
-        ;check of een buslijn aansluitend aan de huidige stop wel de bestemming heeft
-        foreach busschedule [
-          let other_schedule ?1
-          if member? current_stop other_schedule and member? des other_schedule and found = false[
-            ;overstappen
-            set found true
-            drop-off-passenger pass_id
-            stop  ;niet doorzoeken als oplossing gevonden
-            ]
+      if (length bus_passengers) < 150[
+        pick-up-passenger pass_id
+        set found true
+      ]
+    ]
+    if found = false[
+      ;other lines pass this bus-stop and have destination?
+      foreach busschedule [
+        let other_schedule ?1
+        if (member? des other_schedule and member? current_stop other_schedule and found = false)
+        [
+          ;wait for other bus.
+          set _wait true
+          set found true
         ]
+      ]
+      if _wait != true[
+        ;transfer!
         
         ;check of other buslijn ergens een connectie heeft met huidige buslijn, dus transfer mogelijk
         if found = false [
@@ -172,65 +193,20 @@ to execute-actions
                 set found true
                 set transfers lput pass_id transfers
                 set transfers lput transfer transfers
-                stop
-              ]              
-              
-              ;TODO transfer nog een niveau dieper
+                pick-up-passenger pass_id
+              ]
               ]
             ]
           ]
-        if found = false [
-          ;wtf moeten we met deze persoon?
-          if random 2 = 1 [
-            drop-off-passenger pass_id         
-            ]
-          ]
-        ]
-      ]
-    ]
-  
-  ;GET NEW PASSENGERS IN
-  let _wait false
-  foreach get-passengers-at-stop current_stop[
-    let pass_id item 0 ?1
-    let des item 1 ?1
-    ;des is in my_schedule
-    ifelse member? des my_schedule 
-    [
-      if (length bus_passengers) < 150[
-        pick-up-passenger pass_id
-      ]
-    ][
-      ;other lines pass this bus-stop?
-      foreach busschedule [
-        let other_schedule ?1
-        if (member? des other_schedule and member? current_stop other_schedule)
-        [
-          ;wait for other bus.
-          set _wait true
-        ]
-      ]
-      if _wait != true[
-        ;transfer!
-        let found false
-        foreach my_schedule [
-          let check ?1
-          foreach busschedule[
-            if member? check ?1 and member? des ?1 and found = false[
-              if (length bus_passengers) < 150[         ;niet per se nodig, wordt al gecheckt in pick-up-passenger
-                pick-up-passenger pass_id         
-                set found true               
-              ]
-            ]
-          ]
-        ]
+        
+        
         if found != true[
           ;no clue what to do, pick the guy up.. see what happens.
           if (length bus_passengers) < 150 and random 2 = 1[
             pick-up-passenger pass_id    
           ]
         ]
-      ]
+      
     ]
   ]
   
@@ -262,6 +238,7 @@ end
 
 to init-line-15
   add-bus 3
+  set buses_info lput [] buses_info
   set transfers []
   set current_stop 16
   set cur_pos 0
@@ -271,6 +248,7 @@ end
 
 to init-line-15-rev
   add-bus 3
+  set buses_info lput [] buses_info
   set transfers []
   set current_stop 23
   set cur_pos 5
@@ -280,6 +258,7 @@ to init-line-15-rev
 end
 
 to init-line-22
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 16
@@ -289,6 +268,7 @@ to init-line-22
 end
 
 to init-line-22-rev
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 12
@@ -299,6 +279,7 @@ to init-line-22-rev
 end
 
 to init-line-34
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 2
@@ -308,6 +289,7 @@ to init-line-34
 end
 
 to init-line-34-rev
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 6
@@ -318,6 +300,7 @@ to init-line-34-rev
 end
 
 to init-line-40
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 0
@@ -327,6 +310,7 @@ to init-line-40
 end
 
 to init-line-40-rev
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 12
@@ -337,6 +321,7 @@ to init-line-40-rev
 end
 
 to init-line-62
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 11
@@ -346,6 +331,7 @@ to init-line-62
 end
 
 to init-line-62-rev
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 0
@@ -356,6 +342,7 @@ to init-line-62-rev
 end
 
 to init-line-42
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 3
@@ -365,6 +352,7 @@ to init-line-42
 end
 
 to init-line-42-rev
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 0
@@ -375,6 +363,7 @@ to init-line-42-rev
 end
 
 to init-line-45
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 3
@@ -384,6 +373,7 @@ to init-line-45
 end
 
 to init-line-45-rev
+  set buses_info lput [] buses_info
   add-bus 3
   set transfers []
   set current_stop 23
