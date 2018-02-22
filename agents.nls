@@ -35,7 +35,9 @@ to init-buses
   ; This list contains the topology of the entire network of bus stops which is known to all agents. You can use this for instance to calculate the shortest path between two bus stops.
   set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]  
   
+  ;SET parameters every bus
   set buses_info []
+  set returning false
   
   ifelse bus_id = 24 
   [
@@ -103,12 +105,12 @@ to init-beliefs
    foreach list-bus-stops [ set beliefs lput ( get-passengers-at-stop ?1 ) beliefs ]
 end
 
+
 to execute-actions
   
   ;MAKE MORE BUSES
-  let limit 13
+  let limit 13 - (count buses)
   repeat limit [
-    show "test"
     add-bus 3
   ]
   
@@ -146,8 +148,8 @@ to execute-actions
         set amount_passengers_dropped amount_passengers_dropped + 1
         ]
       [
-        set transfers remove-item (trans_id_pos) transfers
         set transfers remove-item (trans_des_pos) transfers
+        set transfers remove-item (trans_id_pos) transfers
         ]
       ]
     ]
@@ -195,36 +197,30 @@ to execute-actions
               if member? ?1 my_schedule [
                 ;transfer mogelijk
                 set transfer ?1
-                ]
-              ]
-            ]
-          ;kijken of via die transfer bestemming kan bereiken
-          foreach busschedule [
-            if found = true [stop]  ;ga uit foreach loop
-            let other2_schedule 0
-            if ?1 != my_schedule and ?1 != other_schedule [set other2_schedule ?1]
-            if is-list? other2_schedule [
-              foreach other_schedule [
-                if found = true [stop]  ;ga uit foreach loop
-                if member? ?1 other2_schedule and member? des other2_schedule and found = false [
-                  ;overstappen via transfer
-                  set found true
-                  set transfers lput pass_id transfers
-                  set transfers lput transfer transfers
-                  pick-up-passenger pass_id
+                ;kijken of via die transfer bestemming kan bereiken
+                foreach busschedule [
+                  if found = true [stop]  ;ga uit foreach loop
+                  let other2_schedule 0
+                  if ?1 != my_schedule and ?1 != other_schedule [set other2_schedule ?1]
+                  if is-list? other2_schedule [
+                    foreach other_schedule [
+                      if found = true [stop]  ;ga uit foreach loop
+                      if member? ?1 other2_schedule and member? des other2_schedule and found = false [
+                        ;overstappen via transfer
+                        set found true
+                        if transfer != current_stop [
+                          set transfers lput pass_id transfers
+                          set transfers lput transfer transfers
+                          pick-up-passenger pass_id
+                        ]
+                      ]
+                    ]
                   ]
+                ]
                 ]
               ]
             ]
           
-          ]
-        
-        
-        if found != true[
-          ;no clue what to do, pick the guy up.. see what happens.
-          if (length bus_passengers) < 150 and random 2 = 1[
-            pick-up-passenger pass_id    
-            ]
           ]
         ]
       ]
