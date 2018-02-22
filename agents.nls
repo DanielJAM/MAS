@@ -152,17 +152,20 @@ to execute-actions
   foreach get-passengers-at-stop current_stop[
     let pass_id item 0 ?1
     let des item 1 ?1
+    
     ;des is in my_schedule
     if member? des my_schedule 
     [
-      if (length bus_passengers) < 150[
+      set found true
+      if (length bus_passengers) < 150[    ;deze check wordt al gedaan in pick-up-passenger
         pick-up-passenger pass_id
-        set found true
         ]
       ]
+    
+    ;other lines pass this bus-stop and have destination?
     if found = false[
-      ;other lines pass this bus-stop and have destination?
       foreach busschedule [
+        if found = true [stop]  ;ga uit foreach loop
         let other_schedule ?1
         if (member? des other_schedule and member? current_stop other_schedule and found = false)
         [
@@ -171,32 +174,43 @@ to execute-actions
           set found true
           ]
         ]
-      if _wait != true[
+      
+      if _wait = false[
         ;transfer!
         
         ;check of other buslijn ergens een connectie heeft met huidige buslijn, dus transfer mogelijk
-        if found = false [
-          foreach busschedule [
-            let other_schedule ?1
-            let transfer 0
+        foreach busschedule [
+          if found = true [stop]  ;ga uit foreach loop
+          let other_schedule 0
+          if ?1 != my_schedule[set other_schedule ?1]  ;niet jezelf met jezelf vergelijken
+          let transfer 0
+          if is-list? other_schedule[
             foreach other_schedule [
               if member? ?1 my_schedule [
                 ;transfer mogelijk
                 set transfer ?1
                 ]
               ]
-            ;kijken of via die transfer bestemming kan bereiken
-            foreach busschedule [
-              let other2_schedule ?1
-              if member? transfer other2_schedule and member? des other2_schedule and found = false [
-                ;overstappen via transfer
-                set found true
-                set transfers lput pass_id transfers
-                set transfers lput transfer transfers
-                pick-up-passenger pass_id
+            ]
+          ;kijken of via die transfer bestemming kan bereiken
+          foreach busschedule [
+            if found = true [stop]  ;ga uit foreach loop
+            let other2_schedule 0
+            if ?1 != my_schedule and ?1 != other_schedule [set other2_schedule ?1]
+            if is-list? other2_schedule [
+              foreach other_schedule [
+                if found = true [stop]  ;ga uit foreach loop
+                if member? ?1 other2_schedule and member? des other2_schedule and found = false [
+                  ;overstappen via transfer
+                  set found true
+                  set transfers lput pass_id transfers
+                  set transfers lput transfer transfers
+                  pick-up-passenger pass_id
+                  ]
                 ]
               ]
             ]
+          
           ]
         
         
