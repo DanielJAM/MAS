@@ -19,25 +19,23 @@ buses-own [
   returning
   transfers
   buses_info
-  init_bus_info
 ]
  
-globals [ 
+globals [
   graph
   amount_passengers_dropped
   ]
 
 to init-buses
+  show bus_id
   ; Initialize your agents here.
-  if not is-list? beliefs [init-beliefs]
-  if not is-list? busschedule [init-busschedule]
+  init-beliefs
+  init-busschedule
   
   ; This list contains the topology of the entire network of bus stops which is known to all agents. You can use this for instance to calculate the shortest path between two bus stops.
-  if not is-list? graph [
-    set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
-    ]
+  set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]  
   
-  if not is-list? init_bus_info []
+  set buses_info []
   
   ifelse bus_id = 24 
   [
@@ -106,6 +104,14 @@ to init-beliefs
 end
 
 to execute-actions
+  
+  ;MAKE MORE BUSES
+  let limit 13
+  repeat limit [
+    show "test"
+    add-bus 3
+  ]
+  
   ; Add decision making strategies for your agents here.
   ; You are allowed to use the global variable 'ticks'
   update-beliefs
@@ -242,7 +248,8 @@ to execute-actions
   ;start moving
   travel-to item cur_pos my_schedule 
   ]
-end
+  end
+
 
 to update-beliefs
   set beliefs []
@@ -250,7 +257,6 @@ to update-beliefs
 end
 
 to init-line-15
-  add-bus 3
   set buses_info lput [] buses_info
   set transfers []
   set current_stop 16
@@ -260,7 +266,6 @@ to init-line-15
 end
 
 to init-line-15-rev
-  add-bus 3
   set buses_info lput [] buses_info
   set transfers []
   set current_stop 23
@@ -272,7 +277,6 @@ end
 
 to init-line-22
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 16
   set cur_pos 0
@@ -282,7 +286,6 @@ end
 
 to init-line-22-rev
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 12
   set cur_pos 4
@@ -293,7 +296,6 @@ end
 
 to init-line-34
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 2
   set cur_pos 0
@@ -303,7 +305,6 @@ end
 
 to init-line-34-rev
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 6
   set cur_pos 6
@@ -314,7 +315,6 @@ end
 
 to init-line-40
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 0
   set cur_pos 0
@@ -324,7 +324,6 @@ end
 
 to init-line-40-rev
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 12
   set cur_pos 4
@@ -335,7 +334,6 @@ end
 
 to init-line-62
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 11
   set cur_pos 0
@@ -345,7 +343,6 @@ end
 
 to init-line-62-rev
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 0
   set cur_pos 5
@@ -356,7 +353,6 @@ end
 
 to init-line-42
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 3
   set cur_pos 0
@@ -366,7 +362,6 @@ end
 
 to init-line-42-rev
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 0
   set cur_pos 5
@@ -377,7 +372,6 @@ end
 
 to init-line-45
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 3
   set cur_pos 0
@@ -387,7 +381,6 @@ end
 
 to init-line-45-rev
   set buses_info lput [] buses_info
-  add-bus 3
   set transfers []
   set current_stop 23
   set cur_pos 4
