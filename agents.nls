@@ -27,7 +27,6 @@ globals [
   ]
 
 to init-buses
-  show bus_id
   ; Initialize your agents here.
   init-beliefs
   init-busschedule
@@ -39,55 +38,55 @@ to init-buses
   set buses_info []
   set returning false
   
-  ifelse bus_id = 24 
+  ifelse bus_id = 25
   [
     init-line-15
   ][
-  ifelse bus_id = 25 
+  ifelse bus_id = 26
   [
     init-line-15-rev
   ][
-  ifelse bus_id = 26
+  ifelse bus_id = 27
   [
     init-line-22
   ][
-  ifelse bus_id = 27
+  ifelse bus_id = 28
   [
     init-line-22-rev   
   ][
-  ifelse bus_id = 28
+  ifelse bus_id = 29
   [
     init-line-34
   ][
-  ifelse bus_id = 29
+  ifelse bus_id = 30
   [
     init-line-34-rev
   ][
-  ifelse bus_id = 30
+  ifelse bus_id = 31
   [
     init-line-40
   ][
-  ifelse bus_id = 31
+  ifelse bus_id = 32
   [
     init-line-40-rev
   ][
-  ifelse bus_id = 32
+  ifelse bus_id = 33
   [
     init-line-62
   ][
-  ifelse bus_id = 33
+  ifelse bus_id = 34
   [
     init-line-62-rev  
   ][
-  ifelse bus_id = 34
+  ifelse bus_id = 35
   [
     init-line-42
   ][
-  ifelse bus_id = 35
+  ifelse bus_id = 36
   [
     init-line-42-rev
   ][
-  ifelse bus_id = 36
+  ifelse bus_id = 37
   [
     init-line-45
   ][
@@ -109,142 +108,177 @@ end
 to execute-actions
   
   ;MAKE MORE BUSES
-  let limit 13 - (count buses)
-  repeat limit [
-    add-bus 3
+  if bus_id = 24 [
+    let limit 14
+    repeat limit [
+      add-bus 3
+    ]
+  ]
+  if bus_id = 24[
+    die
   ]
   
   ; Add decision making strategies for your agents here.
   ; You are allowed to use the global variable 'ticks'
   update-beliefs
-  let tmp round bus_id / 2
-  let my_schedule item (tmp - 12) busschedule
+  let tmp floor ((bus_id - 1) / 2)
+  set tmp tmp - 12
+  let my_schedule item tmp busschedule
   ifelse current_stop = -1 [
     ;driving
     travel-to next_stop
   ][
-  ;arrived at busstop
+    ;arrived at busstop
   
-  ;KICK PASSENGERS OUT
-  foreach bus_passengers [
-    let pass_id item 0 ?1
-    let des item 1 ?1
-    let trans_des -2
-    let trans_des_pos -2
-    let trans_id_pos -2
+    ;KICK PASSENGERS OUT
+    foreach bus_passengers [
+      let pass_id item 0 ?1
+      let des item 1 ?1
+      
+      let trans_des -2
+      let trans_des_pos -2
+      let trans_id_pos -2        
+      
     
-    ;Heeft deze passagier een transfer?
-    if is-number? (position pass_id transfers) [
-      set trans_id_pos (position pass_id transfers)
-      set trans_des_pos (trans_id_pos + 1)
-      set trans_des (item trans_des_pos transfers)
+      ;Heeft deze passagier een transfer?
+      if is-number? (position pass_id transfers) [
+        set trans_id_pos (position pass_id transfers)
+        set trans_des_pos (trans_id_pos + 1)
+        set trans_des (item trans_des_pos transfers)
       ]
-    
-    if des = current_stop or trans_des = current_stop
-    [
-      ;uitstappen en transfers of aantal passengers dropped aanpassen
-      drop-off-passenger pass_id
-      ifelse trans_des = -2 [
-        set amount_passengers_dropped amount_passengers_dropped + 1
+         
+      if des = current_stop or trans_des = current_stop[
+        ;uitstappen en transfers of aantal passengers dropped aanpassen
+        if bus_id = 29 or bus_id = 43[
+          show "DROP"
+          show pass_id
         ]
-      [
-        set transfers remove-item (trans_des_pos) transfers
-        set transfers remove-item (trans_id_pos) transfers
+        drop-off-passenger pass_id
+        ifelse trans_des = -2 [
+          set amount_passengers_dropped amount_passengers_dropped + 1
+        ][
+          set transfers remove-item (trans_des_pos) transfers
+          set transfers remove-item (trans_id_pos) transfers
         ]
       ]
     ]
-  
-  ;GET NEW PASSENGERS IN
-  let _wait false
-  let found false
-  foreach get-passengers-at-stop current_stop[
-    let pass_id item 0 ?1
-    let des item 1 ?1
+
+    ;GET NEW PASSENGERS IN
+    let _wait false
+    let found false
+    foreach get-passengers-at-stop current_stop[
+      let pass_id item 0 ?1
+      let des item 1 ?1
     
-    ;des is in my_schedule
-    if member? des my_schedule 
-    [
-      set found true
-      if (length bus_passengers) < 150[    ;deze check wordt al gedaan in pick-up-passenger
-        pick-up-passenger pass_id
+      ;des is in my_schedule
+      if member? des my_schedule [
+        set found true
+        if (length bus_passengers) < 150[    ;deze check wordt al gedaan in pick-up-passenger
+          pick-up-passenger pass_id
         ]
       ]
     
-    ;other lines pass this bus-stop and have destination?
-    if found = false[
-      foreach busschedule [
-        if found = true [stop]  ;ga uit foreach loop
-        let other_schedule ?1
-        if (member? des other_schedule and member? current_stop other_schedule and found = false)
-        [
-          ;wait for other bus.
-          set _wait true
-          set found true
-          ]
-        ]
-      
-      if _wait = false[
-        ;transfer!
-        
-        ;check of other buslijn ergens een connectie heeft met huidige buslijn, dus transfer mogelijk
+      ;other lines pass this bus-stop and have destination?
+      if found = false[
         foreach busschedule [
-          if found = true [stop]  ;ga uit foreach loop
-          let other_schedule 0
-          if ?1 != my_schedule[set other_schedule ?1]  ;niet jezelf met jezelf vergelijken
-          let transfer 0
-          if is-list? other_schedule[
-            foreach other_schedule [
-              if member? ?1 my_schedule [
-                ;transfer mogelijk
-                set transfer ?1
-                ;kijken of via die transfer bestemming kan bereiken
-                foreach busschedule [
-                  if found = true [stop]  ;ga uit foreach loop
-                  let other2_schedule 0
-                  if ?1 != my_schedule and ?1 != other_schedule [set other2_schedule ?1]
-                  if is-list? other2_schedule [
-                    foreach other_schedule [
-                      if found = true [stop]  ;ga uit foreach loop
-                      if member? ?1 other2_schedule and member? des other2_schedule and found = false [
-                        ;overstappen via transfer
-                        set found true
-                        if transfer != current_stop [
-                          set transfers lput pass_id transfers
-                          set transfers lput transfer transfers
-                          pick-up-passenger pass_id
-                        ]
-                      ]
-                    ]
+          
+          let other_schedule ?1
+          if (member? des other_schedule and member? current_stop other_schedule and found = false)[
+            ;wait for other bus.
+            set found true
+          ]
+          
+          ;if member? current_stop other_schedule and found = false[
+            ;can you transfer in once from this one?
+            ;let transfer 0
+            ;foreach other_schedule[
+              ;set transfer ?1
+              ;foreach busschedule[
+                ;let second_transfer 0
+                ;if ?1 != my_schedule[set second_transfer ?1]  ;niet jezelf met jezelf vergelijken
+                ;if is-list? second_transfer and member? transfer second_transfer and member? des second_transfer[
+                  ;wait for other bus
+                  ;set found true
+                ;]
+              ;]
+            ;]
+          ;]
+        ]
+        let pos_trans []
+        if found = false[
+          ;transfer!
+          ;check of other buslijn ergens een connectie heeft met huidige buslijn, dus transfer mogelijk
+          foreach busschedule [
+            let other_schedule 0
+            if ?1 != my_schedule[set other_schedule ?1]  ;niet jezelf met jezelf vergelijken
+            let transfer 0
+            if is-list? other_schedule and found = false[
+              foreach other_schedule [
+                if member? ?1 my_schedule [
+                  ;transfer mogelijk
+                  set transfer ?1
+                  set pos_trans lput transfer pos_trans
+                  ;check of dit in 1 keer goed gaat
+                  if member? des other_schedule and found = false[
+                    set transfers lput pass_id transfers
+                    set transfers lput transfer transfers
+                    set found true
+                    pick-up-passenger pass_id
                   ]
-                ]
                 ]
               ]
             ]
-          
+          ]
+        ]
+        if found = false[
+          ;we zoeken een dubbele transfer
+          let transfer 0
+          foreach pos_trans[
+            ;zoek schema vanaf deze site
+            set transfer ?1
+            foreach busschedule [
+              let other_schedule 0
+              if ?1 != my_schedule [set other_schedule ?1]
+              if is-list? other_schedule and member? transfer other_schedule and found = false[
+                ;zo een schema gevonden, hier kun je niet in 1x door (al eerder gevonden).
+                ;kan je er nu wel in 1x komen? (verbetering?)
+                let second_trans 0
+                foreach other_schedule[
+                  set second_trans ?1
+                  foreach busschedule[
+                    if member? second_trans ?1 and member? des ?1 and found = false[
+                      ;this is an improvement!
+                      set transfers lput pass_id transfers
+                      set transfers lput transfer transfers
+                      set found true
+                      pick-up-passenger pass_id
+                    ]
+                  ]
+                ]
+              ]              
+            ]
           ]
         ]
       ]
+      set found false
+    ]
+    ifelse returning[
+      set cur_pos cur_pos - 1
+    ][
+      set cur_pos cur_pos + 1 
+    ]
+    if cur_pos > (length my_schedule) - 1[
+      set returning true
+      set cur_pos cur_pos - 2
+    ]
+    if cur_pos < 0 [
+      set returning false
+      set cur_pos 1
+    ]
+    ;start moving
+    travel-to item cur_pos my_schedule 
   ]
-  
-  ifelse returning 
-  [
-    set cur_pos cur_pos - 1
-  ][
-    set cur_pos cur_pos + 1 
-  ]
-  if cur_pos > (length my_schedule) - 1
-  [
-    set returning true
-    set cur_pos cur_pos - 2
-  ]
-  if cur_pos < 0 [
-    set returning false
-    set cur_pos 1
-  ]
-  ;start moving
-  travel-to item cur_pos my_schedule 
-  ]
-  end
+end
 
 
 to update-beliefs
