@@ -2,7 +2,6 @@
 En MASse!
 
 #TODO:
-- communicatie implementeren (zie homework 2)
 - transfer algoritme optimaliseren
   - wait implementeren voor enkele transfer van andere bus (ipv dubbele van zelf zoeken)
   - over het algemene kijken naar de for-loops
