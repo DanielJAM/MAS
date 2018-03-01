@@ -19,10 +19,11 @@ buses-own [
   busschedule
   returning
   transfers
-  buses_info
+  line-buses
   init
   init_pos
   init_schedule
+  
 ]
  
 globals [
@@ -39,7 +40,6 @@ to init-buses
   set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]  
   
   ;SET parameters every bus
-  set buses_info []
   set returning false
   
   ifelse bus_id = 25
@@ -148,13 +148,12 @@ to execute-actions
     ]
 
     ;GET NEW PASSENGERS IN
-    let _wait false
     let found false
     foreach get-passengers-at-stop current_stop[
       let pass_id item 0 ?1
       let des item 1 ?1
-    
-      ;des is in my_schedule
+      
+      ;des is in own_schedule?
       if member? des own_schedule [
         set found true
         if (length bus_passengers) < 150[    ;deze check wordt al gedaan in pick-up-passenger
@@ -165,7 +164,6 @@ to execute-actions
       ;other lines pass this bus-stop and have destination?
       if found = false[
         foreach busschedule [
-          
           let other_schedule ?1
           if (member? des other_schedule and member? current_stop other_schedule and found = false)[
             ;wait for other bus.
@@ -267,13 +265,13 @@ to update-beliefs
 end
 
 to init-line-15
-  set buses_info lput [] buses_info
   set transfers []
   set init true
   set init_pos 0
   set init_schedule [16]
   set own_schedule item 0 busschedule
   set returning false
+  set buses-info lput 25 buses_info
 end
 
 to init-line-22
@@ -283,28 +281,28 @@ to init-line-22
   set cur_pos 1
   set own_schedule item 1 busschedule
   set returning false
+  set buses-info lput 26 buses_info
 end
 
 to init-line-34
-  set buses_info lput [] buses_info
   set transfers []
   set init false
   set cur_pos 3
   set own_schedule item 2 busschedule
   set returning false
+  set buses-info lput 27 buses-info
 end
 
 to init-line-40
-  set buses_info lput [] buses_info
   set transfers []
   set init true
   set init_schedule [9 20 12]
   set own_schedule item 3 busschedule
   set returning false
+  set buses-info lput 28 buses-info
 end
 
 to init-line-62
-  set buses_info lput [] buses_info
   set transfers []
   set init true
   set init_pos 0
@@ -312,22 +310,23 @@ to init-line-62
   set cur_pos 5
   set own_schedule item 4 busschedule
   set returning true
+  set buses-info lput 29 buses-info
 end
 
 to init-line-42
-  set buses_info lput [] buses_info
   set transfers []
   set init false
   set cur_pos 0
   set own_schedule item 5 busschedule
   set returning false
+  set buses-info lput 30 buses-info
 end
 
 to init-line-45
-  set buses_info lput [] buses_info
   set transfers []
   set init false
   set cur_pos 0
   set own_schedule item 6 busschedule
   set returning false
+  set buses-info lput 31 buses-info
 end
