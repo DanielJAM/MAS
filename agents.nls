@@ -13,12 +13,16 @@ buses-own [
   ; New local variables for students.
   ; You can create any new local variable you want. Just declare them here.
   cur_pos
+  own_schedule
   beliefs
   list-bus-stops
   busschedule
   returning
   transfers
   buses_info
+  init
+  init_pos
+  init_schedule
 ]
  
 globals [
@@ -42,56 +46,23 @@ to init-buses
   [
     init-line-15
   ][
-  ifelse bus_id = 26
-  [
-    init-line-15-rev
-  ][
-  ifelse bus_id = 27
-  [
+  ifelse bus_id = 26[
     init-line-22
   ][
-  ifelse bus_id = 28
-  [
-    init-line-22-rev   
-  ][
-  ifelse bus_id = 29
-  [
+  ifelse bus_id = 27[
     init-line-34
   ][
-  ifelse bus_id = 30
-  [
-    init-line-34-rev
-  ][
-  ifelse bus_id = 31
-  [
+  ifelse bus_id = 28[
     init-line-40
   ][
-  ifelse bus_id = 32
-  [
-    init-line-40-rev
-  ][
-  ifelse bus_id = 33
-  [
+  ifelse bus_id = 29[
     init-line-62
   ][
-  ifelse bus_id = 34
-  [
-    init-line-62-rev  
-  ][
-  ifelse bus_id = 35
-  [
+  ifelse bus_id = 30[
     init-line-42
   ][
-  ifelse bus_id = 36
-  [
-    init-line-42-rev
-  ][
-  ifelse bus_id = 37
-  [
     init-line-45
-  ][
-  init-line-45-rev
-  ]]]]]]]]]]]]]
+  ]]]]]]
 end
 
 to init-busschedule
@@ -107,29 +78,47 @@ end
 
 to execute-actions
   
-  ;MAKE MORE BUSES
-  if bus_id = 24 [
-    let limit 14
-    repeat limit [
-      add-bus 3
-    ]
-  ]
+  ;bus_24 makes more buses and then stops
+  let limit 8
   if bus_id = 24[
-    die
+    if count buses != limit[
+      set limit limit - count buses
+      repeat limit [
+        add-bus 3
+      ]
+    ]
+    stop
   ]
+
+  
+  if init = true[
+    ;are we driving or starting to drive?
+    ifelse current_stop = -1 or current_stop = 3[
+      travel-to item init_pos init_schedule
+      stop
+    ][
+      ;check if we arrived
+      ifelse member? current_stop own_schedule[
+        ;we made it
+        set init false
+      ][
+        ;go to the next stop
+        set init_pos init_pos + 1
+        travel-to item init_pos init_schedule
+        stop
+      ]
+    ]    
+  ]
+  
   
   ; Add decision making strategies for your agents here.
   ; You are allowed to use the global variable 'ticks'
   update-beliefs
-  let tmp floor ((bus_id - 1) / 2)
-  set tmp tmp - 12
-  let my_schedule item tmp busschedule
   ifelse current_stop = -1 [
     ;driving
     travel-to next_stop
   ][
     ;arrived at busstop
-  
     ;KICK PASSENGERS OUT
     foreach bus_passengers [
       let pass_id item 0 ?1
@@ -137,9 +126,8 @@ to execute-actions
       
       let trans_des -2
       let trans_des_pos -2
-      let trans_id_pos -2        
-      
-    
+      let trans_id_pos -2    
+     
       ;Heeft deze passagier een transfer?
       if is-number? (position pass_id transfers) [
         set trans_id_pos (position pass_id transfers)
@@ -149,10 +137,6 @@ to execute-actions
          
       if des = current_stop or trans_des = current_stop[
         ;uitstappen en transfers of aantal passengers dropped aanpassen
-        if bus_id = 29 or bus_id = 43[
-          show "DROP"
-          show pass_id
-        ]
         drop-off-passenger pass_id
         ifelse trans_des = -2 [
           set amount_passengers_dropped amount_passengers_dropped + 1
@@ -171,7 +155,7 @@ to execute-actions
       let des item 1 ?1
     
       ;des is in my_schedule
-      if member? des my_schedule [
+      if member? des own_schedule [
         set found true
         if (length bus_passengers) < 150[    ;deze check wordt al gedaan in pick-up-passenger
           pick-up-passenger pass_id
@@ -187,22 +171,6 @@ to execute-actions
             ;wait for other bus.
             set found true
           ]
-          
-          ;if member? current_stop other_schedule and found = false[
-            ;can you transfer in once from this one?
-            ;let transfer 0
-            ;foreach other_schedule[
-              ;set transfer ?1
-              ;foreach busschedule[
-                ;let second_transfer 0
-                ;if ?1 != my_schedule[set second_transfer ?1]  ;niet jezelf met jezelf vergelijken
-                ;if is-list? second_transfer and member? transfer second_transfer and member? des second_transfer[
-                  ;wait for other bus
-                  ;set found true
-                ;]
-              ;]
-            ;]
-          ;]
         ]
         let pos_trans []
         if found = false[
@@ -210,26 +178,33 @@ to execute-actions
           ;check of other buslijn ergens een connectie heeft met huidige buslijn, dus transfer mogelijk
           foreach busschedule [
             let other_schedule 0
-            if ?1 != my_schedule[set other_schedule ?1]  ;niet jezelf met jezelf vergelijken
+            if ?1 != own_schedule [set other_schedule ?1]  ;niet jezelf met jezelf vergelijken
             let transfer 0
             if is-list? other_schedule and found = false[
               foreach other_schedule [
-                if member? ?1 my_schedule [
+                if member? ?1 own_schedule and found = false[
                   ;transfer mogelijk
                   set transfer ?1
                   set pos_trans lput transfer pos_trans
                   ;check of dit in 1 keer goed gaat
                   if member? des other_schedule and found = false[
-                    set transfers lput pass_id transfers
-                    set transfers lput transfer transfers
-                    set found true
-                    pick-up-passenger pass_id
+                    ifelse transfer = current_stop[
+                      ;deze persoon wilt hier al overstappen, niet meenemen
+                      set found true
+                    ][
+                      set transfers lput pass_id transfers
+                      set transfers lput transfer transfers
+                      set found true
+                      pick-up-passenger pass_id
+                    ]
                   ]
                 ]
               ]
             ]
           ]
         ]
+        ;eerst kijken of er niet een bus langs komt met maar 1 transfer!
+        
         if found = false[
           ;we zoeken een dubbele transfer
           let transfer 0
@@ -238,7 +213,7 @@ to execute-actions
             set transfer ?1
             foreach busschedule [
               let other_schedule 0
-              if ?1 != my_schedule [set other_schedule ?1]
+              if ?1 != own_schedule [set other_schedule ?1]
               if is-list? other_schedule and member? transfer other_schedule and found = false[
                 ;zo een schema gevonden, hier kun je niet in 1x door (al eerder gevonden).
                 ;kan je er nu wel in 1x komen? (verbetering?)
@@ -248,10 +223,15 @@ to execute-actions
                   foreach busschedule[
                     if member? second_trans ?1 and member? des ?1 and found = false[
                       ;this is an improvement!
-                      set transfers lput pass_id transfers
-                      set transfers lput transfer transfers
-                      set found true
-                      pick-up-passenger pass_id
+                      ifelse transfer = current_stop[
+                        ;deze persoon wilt hier al overstappen, niet meenemen
+                        set found true
+                      ][
+                        set transfers lput pass_id transfers
+                        set transfers lput transfer transfers
+                        set found true
+                        pick-up-passenger pass_id
+                      ]
                     ]
                   ]
                 ]
@@ -267,7 +247,7 @@ to execute-actions
     ][
       set cur_pos cur_pos + 1 
     ]
-    if cur_pos > (length my_schedule) - 1[
+    if cur_pos > (length own_schedule) - 1[
       set returning true
       set cur_pos cur_pos - 2
     ]
@@ -276,7 +256,7 @@ to execute-actions
       set cur_pos 1
     ]
     ;start moving
-    travel-to item cur_pos my_schedule 
+    travel-to item cur_pos own_schedule 
   ]
 end
 
@@ -289,132 +269,65 @@ end
 to init-line-15
   set buses_info lput [] buses_info
   set transfers []
-  set current_stop 16
-  set cur_pos 0
-  set xcor 6
-  set ycor 26
-end
-
-to init-line-15-rev
-  set buses_info lput [] buses_info
-  set transfers []
-  set current_stop 23
-  set cur_pos 5
-  set returning true
-  set xcor 15
-  set ycor 4
+  set init true
+  set init_pos 0
+  set init_schedule [16]
+  set own_schedule item 0 busschedule
+  set returning false
 end
 
 to init-line-22
   set buses_info lput [] buses_info
   set transfers []
-  set current_stop 16
-  set cur_pos 0
-  set xcor 6
-  set ycor 26
-end
-
-to init-line-22-rev
-  set buses_info lput [] buses_info
-  set transfers []
-  set current_stop 12
-  set cur_pos 4
-  set returning true
-  set xcor 31
-  set ycor 13
+  set init false
+  set cur_pos 1
+  set own_schedule item 1 busschedule
+  set returning false
 end
 
 to init-line-34
   set buses_info lput [] buses_info
   set transfers []
-  set current_stop 2
-  set cur_pos 0
-  set xcor 31
-  set ycor 30
-end
-
-to init-line-34-rev
-  set buses_info lput [] buses_info
-  set transfers []
-  set current_stop 6
-  set cur_pos 6
-  set returning true
-  set xcor 25
-  set ycor 30
+  set init false
+  set cur_pos 3
+  set own_schedule item 2 busschedule
+  set returning false
 end
 
 to init-line-40
   set buses_info lput [] buses_info
   set transfers []
-  set current_stop 0
-  set cur_pos 0
-  set xcor 27
-  set ycor 7
-end
-
-to init-line-40-rev
-  set buses_info lput [] buses_info
-  set transfers []
-  set current_stop 12
-  set cur_pos 4
-  set returning true
-  set xcor 31
-  set ycor 13
+  set init true
+  set init_schedule [9 20 12]
+  set own_schedule item 3 busschedule
+  set returning false
 end
 
 to init-line-62
   set buses_info lput [] buses_info
   set transfers []
-  set current_stop 11
-  set cur_pos 0
-  set xcor 4
-  set ycor 12
-end
-
-to init-line-62-rev
-  set buses_info lput [] buses_info
-  set transfers []
-  set current_stop 0
+  set init true
+  set init_pos 0
+  set init_schedule [4 10 21 22 0]
   set cur_pos 5
+  set own_schedule item 4 busschedule
   set returning true
-  set xcor 27
-  set ycor 7
 end
 
 to init-line-42
   set buses_info lput [] buses_info
   set transfers []
-  set current_stop 3
+  set init false
   set cur_pos 0
-  set xcor 22
-  set ycor 21
-end
-
-to init-line-42-rev
-  set buses_info lput [] buses_info
-  set transfers []
-  set current_stop 0
-  set cur_pos 5
-  set returning true
-  set xcor 27
-  set ycor 7
+  set own_schedule item 5 busschedule
+  set returning false
 end
 
 to init-line-45
   set buses_info lput [] buses_info
   set transfers []
-  set current_stop 3
+  set init false
   set cur_pos 0
-  set xcor 22
-  set ycor 21
-end
-
-to init-line-45-rev
-  set buses_info lput [] buses_info
-  set transfers []
-  set current_stop 23
-  set cur_pos 4
-  set returning true
-  set xcor 15
-  set ycor 4
+  set own_schedule item 6 busschedule
+  set returning false
 end
