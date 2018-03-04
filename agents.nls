@@ -44,7 +44,7 @@ to init-buses
   ; This list contains the topology of the entire network of bus stops which is known to all agents. You can use this for instance to calculate the shortest path between two bus stops.
   set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]  
   
-  if bus_id > 31[
+  ifelse bus_id != master_bus_Id[
     ;;gore hack, komen we op terug
     set bus_configuration [bus_configuration] of bus master_bus_id
     foreach bus_configuration[
@@ -72,34 +72,9 @@ to init-buses
         ]]]]]]
       ]
     ]
-  ]
-  
-  ;SET parameters every bus  
-  ifelse bus_id = master_bus_id[
+  ][
     init-master-bus
-  ][  
-  ifelse bus_id = 25
-  [
-    init-line-15
-  ][
-  ifelse bus_id = 26[
-    init-line-22
-  ][
-  ifelse bus_id = 27[
-    init-line-34
-  ][
-  ifelse bus_id = 28[
-    init-line-40
-  ][
-  ifelse bus_id = 29[
-    init-line-62
-  ][
-  ifelse bus_id = 30[
-    init-line-42
-  ][
-  if bus_id = 31[
-    init-line-45
-  ]]]]]]]]
+  ]
 end
 
 to init-busschedule
@@ -131,7 +106,7 @@ to execute-master
   if count buses != limit[
     set limit limit - count buses
     repeat limit [
-      add-bus 1
+      add-bus 3
     ]
   ]
   check_mailbox_master
@@ -221,7 +196,7 @@ to evaluate-line [schedule_pos]
   let waiting item 0 item schedule_pos line_passengers
   let space item 1 item schedule_pos line_passengers
   
-  if waiting * .5 > space[
+  if waiting > space[
     add-bus-line schedule_pos
   ]
 end
