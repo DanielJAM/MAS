@@ -43,35 +43,36 @@ to init-buses
   
   ; This list contains the topology of the entire network of bus stops which is known to all agents. You can use this for instance to calculate the shortest path between two bus stops.
   set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]  
-  
-  ifelse bus_id != master_bus_Id[
+
+  ifelse bus_id != master_bus_id[
     ;;gore hack, komen we op terug
-    set bus_configuration [bus_configuration] of bus master_bus_id
-    foreach bus_configuration[
-      if member? bus_id ?1 [
-        let pos position ?1 bus_configuration
-        ifelse pos = 0[
-          init-line-15
-        ][
-        ifelse pos = 1[
-          init-line-22
-        ][
-        ifelse pos = 2[
-          init-line-34
-        ][
-        ifelse pos = 3[
-          init-line-40
-        ][
-        ifelse pos = 4[
-          init-line-62
-        ][
-        ifelse pos = 5[
-          init-line-42
-        ][
-          init-line-45
-        ]]]]]]
-      ]
-    ]
+;    set bus_configuration [bus_configuration] of bus master_bus_id
+    send-message master_bus_id (list "request" "init")
+;    foreach bus_configuration[
+;      if member? bus_id ?1 [
+;        let pos position ?1 bus_configuration
+;        ifelse pos = 0[
+;          init-line-15
+;        ][
+;        ifelse pos = 1[
+;          init-line-22
+;        ][
+;        ifelse pos = 2[
+;          init-line-34
+;        ][
+;        ifelse pos = 3[
+;          init-line-40
+;        ][
+;        ifelse pos = 4[
+;          init-line-62
+;        ][
+;        ifelse pos = 5[
+;          init-line-42
+;        ][
+;        init-line-45
+;        ]]]]]]
+;      ]
+;    ]
   ][
     init-master-bus
   ]
@@ -114,7 +115,7 @@ end
 
 to check_mailbox_master
     ;go through inbox
-  
+    
     let space_count 0
     set creation_count 0
     foreach inbox[
@@ -128,9 +129,6 @@ to check_mailbox_master
         set space_count handle-response-master _sender message space_count
       ]
     ]
-    
-    
-    
     set inbox []
 end
 
@@ -167,10 +165,14 @@ to handle-request-master [_sender message]
       ]
     ]
   ]
+  if _subject = "init" [
+    let bus_group get-bus-group _sender
+    let bus_group_pos position bus_group bus_configuration
+    send-message _sender (list "response" "init" bus_group_pos)
+  ]
 end
 
 to-report handle-response-master [_sender message space_count]
-  
   let _subject item 1 message
   if _subject = "space" [
     set space_count space_count + 1
@@ -184,7 +186,6 @@ to-report handle-response-master [_sender message space_count]
     
     set line_passengers replace-item schedule_pos line_passengers (list total_pass total_space)
     
-    ;Dit gaat nog fout als van 2 lijnen tegelijk response!
     if space_count = length bus_group - 1 [
       evaluate-line schedule_pos
       ]
@@ -216,7 +217,7 @@ to add-bus-line [schedule_pos]
   ;get newest id
   let new_id who + count buses + creation_count
   set creation_count creation_count + 1
-  ;add bus to bus_group
+  ;add new bus to bus_configuration
   set bus_configuration replace-item schedule_pos bus_configuration lput new_id item schedule_pos bus_configuration
   add-bus 3
 end
@@ -251,10 +252,11 @@ to check_inbox
     let _sender item 1 mess
     let message item 2 mess
     let _type item 0 message
-    ifelse _type = "request"[
+    if _type = "request"[
       handle-request _sender message
-    ][
-      ;handle response master
+    ]
+    if _type = "response"[
+      handle-response _sender message
     ]
   ]
   set inbox []
@@ -270,10 +272,43 @@ to handle-request [_sender message]
   ]
 end
 
+to handle-response [_sender message]
+  let _subject item 1 message
+  if _subject = "init" [
+    let pos item 2 message
+    ifelse pos = 0[
+      init-line-15
+    ][
+    ifelse pos = 1[
+      init-line-22
+    ][
+    ifelse pos = 2[
+      init-line-34
+    ][
+    ifelse pos = 3[
+      init-line-40
+    ][
+    ifelse pos = 4[
+      init-line-62
+    ][
+    ifelse pos = 5[
+      init-line-42
+    ][
+    init-line-45
+    ]]]]]]
+  ]
+end
+
 to execute-actions
   ;bus_24 makes more buses and then stops
   if bus_id = master_bus_id[
     execute-master
+    stop
+  ]
+  
+  if own_schedule = 0 [
+    ;nog niet geïnitieerd
+    check_inbox
     stop
   ]
   
@@ -448,7 +483,7 @@ to execute-actions
   check_inbox
 end
 
-
+ 
 
 ;INIT BUSES
 to init-master-bus
