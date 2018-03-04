@@ -26,6 +26,7 @@ buses-own [
   request-timeout
   master_bus_id
   creation_count
+  pos_trans
 ]
  
 globals [
@@ -299,6 +300,146 @@ to handle-response [_sender message]
   ]
 end
 
+to kick-passengers-out
+  foreach bus_passengers [
+    let pass_id item 0 ?1
+    let des item 1 ?1
+    
+    let trans_des -2
+    let trans_des_pos -2
+    let trans_id_pos -2    
+   
+    ;Heeft deze passagier een transfer?
+    if is-number? (position pass_id transfers) [
+      set trans_id_pos (position pass_id transfers)
+      set trans_des_pos (trans_id_pos + 1)
+      set trans_des (item trans_des_pos transfers)
+    ]
+       
+    if des = current_stop or trans_des = current_stop[
+      ;uitstappen en transfers of aantal passengers dropped aanpassen
+      drop-off-passenger pass_id
+      ifelse trans_des = -2 [
+        set amount_passengers_dropped amount_passengers_dropped + 1
+      ][
+        set transfers remove-item (trans_des_pos) transfers
+        set transfers remove-item (trans_id_pos) transfers
+      ]
+    ]
+  ]
+end
+
+to-report get-passenger-one-transfer [pass_id des]
+  set pos_trans []
+  foreach busschedule [
+    let other_schedule 0
+    if ?1 != own_schedule [set other_schedule ?1]  ; don't compare with itself
+    let transfer 0
+    if is-list? other_schedule [
+      foreach other_schedule [
+        if member? ?1 own_schedule [
+          ;transfer possible
+          set transfer ?1
+          set pos_trans lput transfer pos_trans
+          ;check if this works in 1 go
+          if member? des other_schedule [
+            ifelse transfer = current_stop[
+              ;this is the transfer location; don't pick up passenger
+              report true
+            ][
+              set transfers lput pass_id transfers
+              set transfers lput transfer transfers
+              pick-up-passenger pass_id
+              report true
+            ]
+          ]
+        ]
+      ]
+    ]
+  ]
+  report false
+end
+
+to-report get-passenger-two-transfers [pass_id des]
+  let transfer 0
+  foreach pos_trans[
+    ;search schema from this site
+    set transfer ?1
+    foreach busschedule [
+      let other_schedule 0
+      if ?1 != own_schedule [set other_schedule ?1]
+      if is-list? other_schedule and member? transfer other_schedule [
+        ;zo een schema gevonden, hier kun je niet in 1x door (al eerder gevonden).
+        ;kan je er nu wel in 1x komen? (verbetering?)
+        let second_trans 0
+        foreach other_schedule[
+          set second_trans ?1
+          foreach busschedule[
+            if member? second_trans ?1 and member? des ?1 [
+              ;this is an improvement!
+              ifelse transfer = current_stop[
+                ;this is the transfer location; don't pick up passenger
+                report true
+              ][
+                set transfers lput pass_id transfers
+                set transfers lput transfer transfers
+                pick-up-passenger pass_id
+                report true
+              ]
+            ]
+          ]
+        ]
+      ]              
+    ]
+  ]
+  report false
+end
+
+to get-new-passenger [pass_id des]
+  ; check if bussize is big enough to fit another passenger
+  if (length bus_passengers) >= get-capacity bus_type[
+    stop
+  ]
+
+  ;des(tination) is in own_schedule?
+  if member? des own_schedule [
+    pick-up-passenger pass_id
+    stop
+  ]
+
+  ;other lines pass this bus-stop and have destination?
+  foreach busschedule [
+    let other_schedule ?1
+    if (member? des other_schedule and member? current_stop other_schedule)[
+      ;wait for other bus.
+      stop
+    ]
+  ]
+
+  ;transfer!
+  ;check if other lines have connections with current line, so transfer possible
+  if get-passenger-one-transfer pass_id des [
+    stop
+  ]
+
+  ;TODO: check if another bus can pick it up with one transfer
+  
+  ;double transfer! (is always possible in our schedule)
+  if get-passenger-two-transfers pass_id des [
+    stop
+  ]
+
+end
+
+to get-new-passengers
+  let found false
+  foreach get-passengers-at-stop current_stop[
+    let pass_id item 0 ?1
+    let des item 1 ?1
+    get-new-passenger pass_id des
+  ]
+end
+
 to execute-actions
   ;bus_24 makes more buses and then stops
   if bus_id = master_bus_id[
@@ -327,130 +468,11 @@ to execute-actions
   ][
     ;arrived at busstop
     ;KICK PASSENGERS OUT
-    foreach bus_passengers [
-      let pass_id item 0 ?1
-      let des item 1 ?1
-      
-      let trans_des -2
-      let trans_des_pos -2
-      let trans_id_pos -2    
-     
-      ;Heeft deze passagier een transfer?
-      if is-number? (position pass_id transfers) [
-        set trans_id_pos (position pass_id transfers)
-        set trans_des_pos (trans_id_pos + 1)
-        set trans_des (item trans_des_pos transfers)
-      ]
-         
-      if des = current_stop or trans_des = current_stop[
-        ;uitstappen en transfers of aantal passengers dropped aanpassen
-        drop-off-passenger pass_id
-        ifelse trans_des = -2 [
-          set amount_passengers_dropped amount_passengers_dropped + 1
-        ][
-          set transfers remove-item (trans_des_pos) transfers
-          set transfers remove-item (trans_id_pos) transfers
-        ]
-      ]
-    ]
+    kick-passengers-out
 
     ;GET NEW PASSENGERS IN
-    let found false
-    foreach get-passengers-at-stop current_stop[
-      let pass_id item 0 ?1
-      let des item 1 ?1
-      
-      ;des is in own_schedule?
-      if member? des own_schedule [
-        set found true
-        if (length bus_passengers) < get-capacity bus_type[
-          pick-up-passenger pass_id
-        ]
-      ]
-    
-      ;other lines pass this bus-stop and have destination?
-      if found = false[
-        foreach busschedule [
-          let other_schedule ?1
-          if (member? des other_schedule and member? current_stop other_schedule and found = false)[
-            ;wait for other bus.
-            set found true
-          ]
-        ]
-        let pos_trans []
-        if found = false[
-          ;transfer!
-          ;check of other buslijn ergens een connectie heeft met huidige buslijn, dus transfer mogelijk
-          foreach busschedule [
-            let other_schedule 0
-            if ?1 != own_schedule [set other_schedule ?1]  ;niet jezelf met jezelf vergelijken
-            let transfer 0
-            if is-list? other_schedule and found = false[
-              foreach other_schedule [
-                if member? ?1 own_schedule and found = false[
-                  ;transfer mogelijk
-                  set transfer ?1
-                  set pos_trans lput transfer pos_trans
-                  ;check of dit in 1 keer goed gaat
-                  if member? des other_schedule and found = false[
-                    ifelse transfer = current_stop[
-                      ;deze persoon wilt hier al overstappen, niet meenemen
-                      set found true
-                    ][
-                      set transfers lput pass_id transfers
-                      set transfers lput transfer transfers
-                      set found true
-                      if (length bus_passengers) < get-capacity bus_type[
-                        pick-up-passenger pass_id
-                      ]
-                    ]
-                  ]
-                ]
-              ]
-            ]
-          ]
-        ]
-        ;eerst kijken of er niet een bus langs komt met maar 1 transfer!
-        
-        if found = false[
-          ;we zoeken een dubbele transfer
-          let transfer 0
-          foreach pos_trans[
-            ;zoek schema vanaf deze site
-            set transfer ?1
-            foreach busschedule [
-              let other_schedule 0
-              if ?1 != own_schedule [set other_schedule ?1]
-              if is-list? other_schedule and member? transfer other_schedule and found = false[
-                ;zo een schema gevonden, hier kun je niet in 1x door (al eerder gevonden).
-                ;kan je er nu wel in 1x komen? (verbetering?)
-                let second_trans 0
-                foreach other_schedule[
-                  set second_trans ?1
-                  foreach busschedule[
-                    if member? second_trans ?1 and member? des ?1 and found = false[
-                      ;this is an improvement!
-                      ifelse transfer = current_stop[
-                        ;deze persoon wilt hier al overstappen, niet meenemen
-                        set found true
-                      ][
-                        set transfers lput pass_id transfers
-                        set transfers lput transfer transfers
-                        set found true
-                        if (length bus_passengers) < get-capacity bus_type[    ;deze check wordt al gedaan in pick-up-passenger
-                          pick-up-passenger pass_id
-                        ]
-                      ]
-                    ]
-                  ]
-                ]
-              ]              
-            ]
-          ]
-        ]
-      ]
-      set found false
-    ]
+    get-new-passengers
+
     ifelse returning[
       set cur_pos cur_pos - 1
     ][
