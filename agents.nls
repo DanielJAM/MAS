@@ -22,7 +22,8 @@ buses-own [
   init_pos
   init_schedule  
   bus_configuration
-  line_passengers
+  ;line_passengers
+  votes_for
   request-timeout
   master_bus_id
   creation_count
@@ -46,34 +47,7 @@ to init-buses
   set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]  
 
   ifelse bus_id != master_bus_id[
-    ;;gore hack, komen we op terug
-;    set bus_configuration [bus_configuration] of bus master_bus_id
     send-message master_bus_id (list "request" "init")
-;    foreach bus_configuration[
-;      if member? bus_id ?1 [
-;        let pos position ?1 bus_configuration
-;        ifelse pos = 0[
-;          init-line-15
-;        ][
-;        ifelse pos = 1[
-;          init-line-22
-;        ][
-;        ifelse pos = 2[
-;          init-line-34
-;        ][
-;        ifelse pos = 3[
-;          init-line-40
-;        ][
-;        ifelse pos = 4[
-;          init-line-62
-;        ][
-;        ifelse pos = 5[
-;          init-line-42
-;        ][
-;        init-line-45
-;        ]]]]]]
-;      ]
-;    ]
   ][
     init-master-bus
   ]
@@ -117,7 +91,7 @@ end
 to check_mailbox_master
     ;go through inbox
     
-    let space_count 0
+    let response_count 0
     set creation_count 0
     foreach inbox[
       let mess ?1
@@ -127,7 +101,7 @@ to check_mailbox_master
       ifelse _type = "request"[
         handle-request-master _sender message
       ][
-        set space_count handle-response-master _sender message space_count
+        set response_count handle-response-master _sender message response_count
       ]
     ]
     set inbox []
@@ -135,70 +109,118 @@ end
 
 to handle-request-master [_sender message]
   let _subject item 1 message 
-  if _subject = "investigate"[
-    let bus_space item 2 message
-    ;sender wants to investigate its line
-    ;request bus_passengers from all other buses on line and store
-    ;also get passengers waiting at busstops
+;  if _subject = "investigate"[
+;    let bus_space item 2 message
+;    ;sender wants to investigate its line
+;    ;request bus_passengers from all other buses on line and store
+;    ;also get passengers waiting at busstops
+;    
+;    let bus_group get-bus-group _sender
+;    
+;    ;schedule_pos gives the position of the schedule in the busschedule list
+;    let schedule_pos position bus_group bus_configuration
+;    
+;    set line_passengers replace-item schedule_pos line_passengers (list 0 bus_space)
+;    
+;    ifelse length bus_group = 1[
+;      let total_pass check-busstops schedule_pos
+;      set line_passengers replace-item schedule_pos line_passengers (list total_pass bus_space)
+;      ;if only 1 bus, we already have the amount of passengers and are done!
+;      evaluate-line schedule_pos
+;      set line_passengers replace-item schedule_pos line_passengers (list 0 0)
+;    ][
+;      ;else ask for extra information from other busses
+;      if item schedule_pos line_passengers = [0 0] [
+;        foreach bus_group[
+;          if _sender != ?1[
+;            send-message ?1 (list "request" "space")
+;          ]
+;        ]
+;      ]
+;    ]
+;  ]
+  if _subject = "init" [
+    let bus_group get-bus-group _sender
+    let bus_group_pos position bus_group bus_configuration
+    send-message _sender (list "response" "init" bus_group_pos)
+  ]
+  if _subject = "vote"[
+    ;sender wants to vote on whether to get an extra bus on its line
+    ;request vote from all other buses on line and store
+    ;also base own vote on amount passengers waiting at busstops
     
     let bus_group get-bus-group _sender
     
     ;schedule_pos gives the position of the schedule in the busschedule list
     let schedule_pos position bus_group bus_configuration
     
-    set line_passengers replace-item schedule_pos line_passengers (list 0 bus_space)
+    ;a request to vote counts as a vote for
+    set votes_for replace-item schedule_pos votes_for 1
     
     ifelse length bus_group = 1[
-      
-      let total_pass check-busstops schedule_pos
-      set line_passengers replace-item schedule_pos line_passengers (list total_pass bus_space)
-      ;if only 1 bus, we already have the amount of passengers and are done!
+      set votes_for replace-item schedule_pos votes_for 1
+      ;if only 1 bus, we already have the amount of votes for and are done!
       evaluate-line schedule_pos
-      set line_passengers replace-item schedule_pos line_passengers (list 0 0)
+      set votes_for replace-item schedule_pos votes_for 0
     ][
-      ;else ask for extra information from other busses
-      if item schedule_pos line_passengers = [0 0] [
+      ;else ask for vote from other busses
+      if item schedule_pos votes_for = 1 [
         foreach bus_group[
           if _sender != ?1[
-            send-message ?1 (list "request" "space")
+            send-message ?1 (list "request" "vote")
           ]
         ]
       ]
     ]
   ]
-  if _subject = "init" [
-    let bus_group get-bus-group _sender
-    let bus_group_pos position bus_group bus_configuration
-    send-message _sender (list "response" "init" bus_group_pos)
-  ]
 end
 
-to-report handle-response-master [_sender message space_count]
+to-report handle-response-master [_sender message response_count]
   let _subject item 1 message
-  if _subject = "space" [
-    set space_count space_count + 1
-    let space item 2 message
+  set response_count response_count + 1
+;  if _subject = "space" [
+;    let space item 2 message
+;    let bus_group get-bus-group _sender
+;    let schedule_pos position bus_group bus_configuration
+;    
+;    let total_space item 1 item schedule_pos line_passengers
+;    set total_space total_space + space
+;    let total_pass check-busstops schedule_pos
+;    
+;    set line_passengers replace-item schedule_pos line_passengers (list total_pass total_space)
+;    
+
+  if _subject = "vote" [
     let bus_group get-bus-group _sender
     let schedule_pos position bus_group bus_configuration
     
-    let total_space item 1 item schedule_pos line_passengers
-    set total_space total_space + space
-    let total_pass check-busstops schedule_pos
+    let vote item 2 message
+    let amount_for item schedule_pos votes_for
+    set amount_for amount_for + vote
+    set votes_for replace-item schedule_pos votes_for amount_for
     
-    set line_passengers replace-item schedule_pos line_passengers (list total_pass total_space)
-    
-    if space_count = length bus_group - 1 [
+    if response_count = length bus_group - 1 [
       evaluate-line schedule_pos
-      ]
-    report space_count
+      set votes_for replace-item schedule_pos votes_for 0
+    ]
   ]
+  
+  report response_count
 end
 
 to evaluate-line [schedule_pos]
-  let waiting item 0 item schedule_pos line_passengers
-  let space item 1 item schedule_pos line_passengers
+;  let waiting item 0 item schedule_pos line_passengers
+;  let space item 1 item schedule_pos line_passengers
+;  
+;  if waiting > space[
+;    add-bus-line schedule_pos
+;  ]
   
-  if waiting > space[
+  ;check if votes for have majority
+  show "works"
+  let possible_votes (length item schedule_pos bus_configuration)
+  let amount_for item schedule_pos votes_for
+  if amount_for > floor (possible_votes / 2) [
     add-bus-line schedule_pos
   ]
 end
@@ -265,11 +287,19 @@ end
 
 to handle-request [_sender message]
   let _subject item 1 message
-  ifelse _subject = "space" [
-    let space get-space
-    send-message _sender (list "response" "space" space)
-  ][
-    ;TODO: andere messages
+;  ifelse _subject = "space" [
+;    let space get-space
+;    send-message _sender (list "response" "space" space)
+;  ][
+;    ;TODO: andere messages
+;  ]
+  if _subject = "vote" [
+    let capacity get-capacity bus_type
+    ifelse length bus_passengers > .67 * capacity [
+      send-message _sender (list "response" "vote" 1)
+    ][
+      send-message _sender (list "response" "vote" 0)
+    ]
   ]
 end
 
@@ -428,7 +458,6 @@ to get-new-passenger [pass_id des]
   if get-passenger-two-transfers pass_id des [
     stop
   ]
-
 end
 
 to get-new-passengers
@@ -473,6 +502,7 @@ to execute-actions
     ;GET NEW PASSENGERS IN
     get-new-passengers
 
+    ;Returning or not?
     ifelse returning[
       set cur_pos cur_pos - 1
     ][
@@ -491,27 +521,32 @@ to execute-actions
     let capacity get-capacity bus_type
     if length bus_passengers > .67 * capacity and request-timeout = 0 [
       ;we are 2/3 full, send message about possible new bus
-      let _space get-space
-      send-message master_bus_id (list "request" "investigate" _space)
+      
+      ;let _space get-space
+      
+      ;send-message master_bus_id (list "request" "investigate" _space)
+      send-message master_bus_id (list "request" "vote")
       set request-timeout 15
     ]
     if request-timeout > 0 [
       set request-timeout request-timeout - 1
     ]
-     
+    
     ;start moving
     travel-to item cur_pos own_schedule 
   ]
+  
   check_inbox
 end
 
- 
+
 
 ;INIT BUSES
 to init-master-bus
   set creation_count 0
   set bus_configuration [[25] [26] [27] [28] [29] [30] [31]]
-  set line_passengers [[0 0] [0 0] [0 0] [0 0] [0 0] [0 0] [0 0]]
+  ;set line_passengers [[0 0] [0 0] [0 0] [0 0] [0 0] [0 0] [0 0]]
+  set votes_for [0 0 0 0 0 0 0]
 end
 
 to init-line-15
