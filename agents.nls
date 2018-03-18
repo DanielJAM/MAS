@@ -109,20 +109,20 @@ end
 
 to handle-request-master [_sender message]
   let _subject item 1 message 
-  if _subject = "init" [
+  ifelse _subject = "init" [
     let bus_group get-bus-group _sender
     let bus_group_pos position bus_group bus_configuration
     send-message _sender (list "response" "init" bus_group_pos)
-  ]
+  ][
+  let bus_group get-bus-group _sender
+  
+  ;schedule_pos gives the position of the schedule in the busschedule list
+  let schedule_pos position bus_group bus_configuration
+  
   if _subject = "vote"[
     ;sender wants to vote on whether to get an extra bus on its line
     ;request vote from all other buses on line and store
     ;also base own vote on amount passengers waiting at busstops
-    
-    let bus_group get-bus-group _sender
-    
-    ;schedule_pos gives the position of the schedule in the busschedule list
-    let schedule_pos position bus_group bus_configuration
     
     ;a request to vote counts as a vote for
     set votes_for replace-item schedule_pos votes_for 1
@@ -134,15 +134,38 @@ to handle-request-master [_sender message]
       set votes_for replace-item schedule_pos votes_for 0
       set votes_responses replace-item schedule_pos votes_responses 0
     ][
-      ;else ask for vote from other busses
-      if item schedule_pos votes_for = 1 [
-        foreach bus_group[
-          if _sender != ?1[
-            send-message ?1 (list "request" "vote")
-          ]
+    ;else ask for vote from other busses
+    if item schedule_pos votes_for = 1 [
+      foreach bus_group[
+        if _sender != ?1[
+          send-message ?1 (list "request" "vote")
         ]
       ]
     ]
+    ]
+  ]
+  if _subject = "bidding" [
+    let bus_stop item 2 message
+    ;check eerst of andere lijnen ook deze stop in hun schedule hebben
+    let competition []
+    foreach bus_group[
+      if _sender != ?1 and member? bus_stop ?1 [
+        set competition lput ?1 competition
+      ]
+    ]
+    
+    ifelse length bus_group = 1 and competition = [][
+      ;Bus is alone, automatically wins bidding
+      send-message _sender (list "response" "bidding")
+      ;Doen dacht ik alleen een response als je wint, scheelt messages. Moet nog wel verwerken in andere bussen dat ze 2 ticks wachten en anders verlies rekenen.
+    ][
+    ;Vraag alle deelnemende bussen om hun bod
+    ;Process die bij handle-response-master
+    foreach competition[
+      send-message ?1 (list "request" "bid" bus_stop)
+    ]
+    ]
+  ]
   ]
 end
 
@@ -277,6 +300,9 @@ to handle-response [_sender message]
     ][
     init-line-45
     ]]]]]]
+  ]
+  if _subject = "bidding" [
+    
   ]
 end
 
@@ -478,15 +504,23 @@ to execute-actions
       ;send-message master_bus_id (list "request" "investigate" _space)
       send-message master_bus_id (list "request" "vote")
       
-      ;send-message master_bus_id (list "request" "bidding" next_stop)
-      
       set request-timeout 15
     ]
     if request-timeout > 0 [
       set request-timeout request-timeout - 1
     ]
-    ;start moving
-    travel-to item cur_pos own_schedule 
+    
+    ;start moving 
+    let next_bus_stop item cur_pos own_schedule
+    travel-to next_bus_stop
+   
+    ;check if bidding is needed
+    foreach busschedule[
+      if member? next_bus_stop ?1 [
+        send-message master_bus_id (list "request" "bidding" next_bus_stop)
+        stop
+      ]
+    ]
   ]
   
   check_inbox
