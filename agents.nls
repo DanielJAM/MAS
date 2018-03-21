@@ -109,20 +109,18 @@ end
 
 to handle-request-master [_sender message]
   let _subject item 1 message 
-  ifelse _subject = "init" [
+  if _subject = "init" [
     let bus_group get-bus-group _sender
     let bus_group_pos position bus_group bus_configuration
     send-message _sender (list "response" "init" bus_group_pos)
-  ][
-  let bus_group get-bus-group _sender
-  
-  ;schedule_pos gives the position of the schedule in the busschedule list
-  let schedule_pos position bus_group bus_configuration
-  
+  ]
   if _subject = "vote"[
     ;sender wants to vote on whether to get an extra bus on its line
     ;request vote from all other buses on line and store
     ;also base own vote on amount passengers waiting at busstops
+    ;schedule_pos gives the position of the schedule in the busschedule list
+    let bus_group get-bus-group _sender
+    let schedule_pos position bus_group bus_configuration
     
     ;a request to vote counts as a vote for
     set votes_for replace-item schedule_pos votes_for 1
@@ -134,38 +132,33 @@ to handle-request-master [_sender message]
       set votes_for replace-item schedule_pos votes_for 0
       set votes_responses replace-item schedule_pos votes_responses 0
     ][
-    ;else ask for vote from other busses
-    if item schedule_pos votes_for = 1 [
-      foreach bus_group[
-        if _sender != ?1[
-          send-message ?1 (list "request" "vote")
+      ;else ask for vote from other busses
+      if item schedule_pos votes_for = 1 [
+        foreach bus_group[
+          if _sender != ?1[
+            send-message ?1 (list "request" "vote")
+          ]
         ]
       ]
-    ]
     ]
   ]
   if _subject = "bidding" [
     let bus_stop item 2 message
+    let bus_lines item 3 message
     ;check eerst of andere lijnen ook deze stop in hun schedule hebben
     let competition []
-    foreach bus_group[
-      if _sender != ?1 and member? bus_stop ?1 [
+    foreach bus_lines[
+      let line_pos ?1
+      let bus_group item line_pos bus_configuration
+      foreach bus_group[
         set competition lput ?1 competition
       ]
     ]
-    
-    ifelse length bus_group = 1 and competition = [][
-      ;Bus is alone, automatically wins bidding
-      send-message _sender (list "response" "bidding")
-      ;Doen dacht ik alleen een response als je wint, scheelt messages. Moet nog wel verwerken in andere bussen dat ze 2 ticks wachten en anders verlies rekenen.
-    ][
     ;Vraag alle deelnemende bussen om hun bod
     ;Process die bij handle-response-master
     foreach competition[
-      send-message ?1 (list "request" "bid" bus_stop)
+      send-message ?1 (list "request" "bidding" bus_stop)
     ]
-    ]
-  ]
   ]
 end
 
@@ -274,6 +267,12 @@ to handle-request [_sender message]
       send-message _sender (list "response" "vote" 0)
     ]
   ]
+  
+  if _subject = "bidding" [
+    let bus_stop item 2 message
+    let bid calculate_bid bus_stop
+    send-message _sender (list "response" "bidding" bid)
+  ]
 end
 
 to handle-response [_sender message]
@@ -304,6 +303,87 @@ to handle-response [_sender message]
   if _subject = "bidding" [
     
   ]
+end
+
+to-report calculate_bid [bus_stop]
+  let bid []
+  let _distance 0
+  let _passengers length bus_passengers 
+  let _capacity get-capacity bus_type
+  ifelse current_stop != -1[
+    set _distance calculate-distance current_stop bus_stop
+  ][
+    set _distance calculate-distance next_stop bus_stop
+  ]
+  
+  ;kijken per passenger!
+  foreach get-passengers-at-stop bus_stop[
+    ;bepaal transfers
+    let des item 1 ?1
+    let transfer_score -1
+    ifelse member? bus_stop own_schedule[
+      ;transfer stays 0
+      set transfer_score 2
+    ][
+      foreach busschedule[
+        let other_schedule 0
+        if ?1 != own_schedule[
+          set other_schedule ?1
+        ]
+        if is-list? other_schedule[
+          foreach other_schedule[
+            if member? ?1 own_schedule[
+              set transfer_score 1
+            ]
+          ]
+        ]
+      ]
+      if transfer_score = -1 [
+        set transfer_score 0
+      ]
+    ]
+    set bid lput (transfer_score * 10 + _distance + _passengers / _capacity * 10) bid
+  ]
+  report bid
+end
+
+to-report calculate-distance [curr dest]
+  let _distance 0
+  let _cur_pos cur_pos
+  let _next_pos -1
+  let dest_pos position dest own_schedule
+  let _returning returning
+  ifelse returning[
+    set _next_pos _cur_pos - 1
+    if _next_pos < 0[
+      set _next_pos 1
+      set _returning false
+    ]
+  ][
+    set _next_pos _cur_pos + 1
+    if _next_pos > length own_schedule - 1 [
+      set _next_pos length own_schedule - 2
+      set _returning true
+    ]
+  ]
+  while [_next_pos != dest_pos][
+    set _distance _distance + get-distance (item _cur_pos own_schedule) (item _next_pos own_schedule)
+    set _cur_pos _next_pos
+    ifelse _returning[
+      set _next_pos _cur_pos - 1
+      if _next_pos < 0[
+        set _next_pos 1
+        set _returning false
+      ]
+    ][
+    set _next_pos _cur_pos + 1
+    if _next_pos > length own_schedule - 1 [
+      set _next_pos length own_schedule - 2
+      set _returning true
+    ]
+    ]
+  ]  
+  report _distance
 end
 
 to kick-passengers-out
@@ -515,14 +595,17 @@ to execute-actions
     travel-to next_bus_stop
    
     ;check if bidding is needed
+    let bus_lines []
     foreach busschedule[
       if member? next_bus_stop ?1 [
-        send-message master_bus_id (list "request" "bidding" next_bus_stop)
-        stop
+        let line_pos position ?1 busschedule
+        set bus_lines lput line_pos bus_lines   
       ]
     ]
+    if length bus_lines > 1[
+      send-message master_bus_id (list "request" "bidding" next_bus_stop bus_lines)
+    ]
   ]
-  
   check_inbox
 end
 
