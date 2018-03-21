@@ -2,14 +2,14 @@ buses-own [
   ;Static read-only variables. These values never change. You can read them but you cannot change them.
   bus_id          ; The ID of a given agent (bus). Each agent has a unique ID.
   bus_type        ; The type of a given agent (bus). 1 means "small" 2 means "medium" and 3 means "large".
-    
+
   ;Dynamic read-only variables. These values may change over time. You can read them but you cannot change them.
   inbox           ; List containing all the incoming messages (a given message is a list like this [tick sender message]).
   bus_passengers  ; List containing all the passengers that the agent (bus) is currently carrying (represented as a list like this [passenger_id bus_stop]).
   previous_stop   ; ID of the last bus stop that the agent (bus) visited (-1 means that the agent has not visited any bus stop yet).
   current_stop    ; ID of the bus stop where the agent (bus) currently is (-1 means that the agent is not at any bus stop).
   next_stop       ; ID of the bus stop the agent (bus) is traveling to (-1 means that the agent is not travelling to any bus stop).
-  
+
   ;New local variables for students.
   ;You can create any new local variable you want. Just declare them here.
   cur_pos
@@ -20,7 +20,7 @@ buses-own [
   transfers
   init
   init_pos
-  init_schedule  
+  init_schedule
   bus_configuration
   ;line_passengers
   votes_for
@@ -32,7 +32,7 @@ buses-own [
   biddings
   won_passengers
 ]
- 
+
 globals [
   graph
   amount_passengers_dropped
@@ -46,9 +46,9 @@ to init-buses
   set master_bus_id 24
   set request-timeout 0
   init-busschedule
-  
-  ; This list contains the topology of the entire network of bus stops which is known to all agents. You can use this for instance to calculate the shortest path between two bus stops.
-  set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]  
+
+  ;This list contains the topology of the entire network of bus stops which is known to all agents. You can use this for instance to calculate the shortest path between two bus stops.
+  set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
 
   ifelse bus_id != master_bus_id[
     send-message master_bus_id (list "request" "init")
@@ -75,7 +75,7 @@ to init-travel-start
       set init_pos init_pos + 1
       travel-to item init_pos init_schedule
     ]
-  ] 
+  ]
 end
 
 
@@ -110,7 +110,7 @@ to check_mailbox_master
 end
 
 to handle-request-master [_sender message]
-  let _subject item 1 message 
+  let _subject item 1 message
   if _subject = "init" [
     let bus_group get-bus-group _sender
     let bus_group_pos position bus_group bus_configuration
@@ -123,11 +123,11 @@ to handle-request-master [_sender message]
     ;schedule_pos gives the position of the schedule in the busschedule list
     let bus_group get-bus-group _sender
     let schedule_pos position bus_group bus_configuration
-    
+
     ;a request to vote counts as a vote for
     set votes_for replace-item schedule_pos votes_for 1
     set votes_responses replace-item schedule_pos votes_responses 1
-    
+
     ifelse length bus_group = 1[
       ;if only 1 bus, we already have the amount of votes for and are done!
       evaluate-line schedule_pos
@@ -171,16 +171,16 @@ to handle-response-master [_sender message]
   if _subject = "vote" [
     let bus_group get-bus-group _sender
     let schedule_pos position bus_group bus_configuration
-    
+
     let vote item 2 message
     let amount_for item schedule_pos votes_for
     set amount_for amount_for + vote
     set votes_for replace-item schedule_pos votes_for amount_for
-    
+
     let vote_responses item schedule_pos votes_responses
     set vote_responses vote_responses + 1
-    set votes_responses replace-item schedule_pos votes_responses vote_responses 
-    
+    set votes_responses replace-item schedule_pos votes_responses vote_responses
+
     if vote_responses = length bus_group [
       evaluate-line schedule_pos
       set votes_for replace-item schedule_pos votes_for 0
@@ -190,15 +190,15 @@ to handle-response-master [_sender message]
   if _subject = "bidding" [
     let _biddings item 2 message
     let _bus_stop item 0 _biddings
-    let _amount_busses_wanted item 0 item _bus_stop biddings 
-    
+    let _amount_busses_wanted item 0 item _bus_stop biddings
+
     set biddings replace-item _bus_stop lput _biddings item _bus_stop biddings biddings
-    
+
     let _amount_busses length item _bus_stop biddings - 1
-    
+
     if _amount_busses_wanted = _amount_busses[
       ;we hebben genoeg binnen!
-      
+
     ]
   ]
 end
@@ -284,7 +284,7 @@ to handle-request [_sender message]
       send-message _sender (list "response" "vote" 0)
     ]
   ]
-  
+
   if _subject = "bidding" [
     let bus_stop item 2 message
     let bid calculate_bid bus_stop
@@ -318,21 +318,21 @@ to handle-response [_sender message]
     ]]]]]]
   ]
   if _subject = "bidding" [
-    
+
   ]
 end
 
 to-report calculate_bid [bus_stop]
   let bids []
   let _distance 0
-  let _passengers length bus_passengers 
+  let _passengers length bus_passengers
   let _capacity get-capacity bus_type
   ifelse current_stop != -1[
     set _distance calculate-distance current_stop bus_stop
   ][
     set _distance calculate-distance next_stop bus_stop
   ]
-  
+
   ;kijken per passenger!
   foreach get-passengers-at-stop bus_stop[
     ;bepaal transfers
@@ -401,7 +401,7 @@ to-report calculate-distance [curr dest]
       set _returning true
     ]
     ]
-  ]  
+  ]
   report _distance
 end
 
@@ -409,18 +409,18 @@ to kick-passengers-out
   foreach bus_passengers [
     let pass_id item 0 ?1
     let des item 1 ?1
-    
+
     let trans_des -2
     let trans_des_pos -2
-    let trans_id_pos -2    
-   
+    let trans_id_pos -2
+
     ;Heeft deze passagier een transfer?
     if is-number? (position pass_id transfers) [
       set trans_id_pos (position pass_id transfers)
       set trans_des_pos (trans_id_pos + 1)
       set trans_des (item trans_des_pos transfers)
     ]
-       
+
     if des = current_stop or trans_des = current_stop[
       ;uitstappen en transfers of aantal passengers dropped aanpassen
       drop-off-passenger pass_id
@@ -494,7 +494,7 @@ to-report get-passenger-two-transfers [pass_id des]
             ]
           ]
         ]
-      ]              
+      ]
     ]
   ]
   report false
@@ -528,7 +528,7 @@ to get-new-passenger [pass_id des]
   ]
 
   ;TODO: check if another bus can pick it up with one transfer
-  
+
   ;double transfer! (is always possible in our schedule)
   if get-passenger-two-transfers pass_id des [
     stop
@@ -550,13 +550,13 @@ to execute-actions
     execute-master
     stop
   ]
-  
+
   if own_schedule = 0 [
     ;nog niet geïnitieerd
     check_inbox
     stop
   ]
-  
+
   if init = true[
     init-travel-start
     check_inbox
@@ -564,7 +564,7 @@ to execute-actions
       stop
     ]
   ]
-  
+
   ; Add decision making strategies for your agents here.
   ; You are allowed to use the global variable 'ticks'
   ifelse current_stop = -1 [
@@ -582,7 +582,7 @@ to execute-actions
     ifelse returning[
       set cur_pos cur_pos - 1
     ][
-      set cur_pos cur_pos + 1 
+      set cur_pos cur_pos + 1
     ]
     if cur_pos > (length own_schedule) - 1[
       set returning true
@@ -592,33 +592,33 @@ to execute-actions
       set returning false
       set cur_pos 1
     ]
-    
+
     ;Are we almost full?
     let capacity get-capacity bus_type
     if length bus_passengers > .67 * capacity and request-timeout = 0 [
       ;we are 2/3 full, send message about possible new bus
-      
+
       ;let _space get-space
-      
+
       ;send-message master_bus_id (list "request" "investigate" _space)
       send-message master_bus_id (list "request" "vote")
-      
+
       set request-timeout 15
     ]
     if request-timeout > 0 [
       set request-timeout request-timeout - 1
     ]
-    
-    ;start moving 
+
+    ;start moving
     let next_bus_stop item cur_pos own_schedule
     travel-to next_bus_stop
-   
+
     ;check if bidding is needed
     let bus_lines []
     foreach busschedule[
       if member? next_bus_stop ?1 [
         let line_pos position ?1 busschedule
-        set bus_lines lput line_pos bus_lines   
+        set bus_lines lput line_pos bus_lines
       ]
     ]
     if length bus_lines > 1[
