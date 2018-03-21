@@ -1006,6 +1006,42 @@ final_average_travelling_time
 1
 11
 
+PLOT
+1337
+245
+1537
+395
+passengers dropped
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot amount_passengers_dropped"
+
+PLOT
+1335
+395
+1535
+545
+Buses created
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot amount_created_buses"
+
 @#$#@#$#@
 ## WHAT IS IT?
 
