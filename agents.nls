@@ -29,6 +29,8 @@ buses-own [
   master_bus_id
   creation_count
   pos_trans
+  biddings
+  won_passengers
 ]
  
 globals [
@@ -159,6 +161,7 @@ to handle-request-master [_sender message]
     foreach competition[
       send-message ?1 (list "request" "bidding" bus_stop)
     ]
+    set biddings replace-item bus_stop (list length competition) biddings
   ]
 end
 
@@ -182,6 +185,20 @@ to handle-response-master [_sender message]
       evaluate-line schedule_pos
       set votes_for replace-item schedule_pos votes_for 0
       set votes_responses replace-item schedule_pos votes_responses 0
+    ]
+  ]
+  if _subject = "bidding" [
+    let _biddings item 2 message
+    let _bus_stop item 0 _biddings
+    let _amount_busses_wanted item 0 item _bus_stop biddings 
+    
+    set biddings replace-item _bus_stop lput _biddings item _bus_stop biddings biddings
+    
+    let _amount_busses length item _bus_stop biddings - 1
+    
+    if _amount_busses_wanted = _amount_busses[
+      ;we hebben genoeg binnen!
+      
     ]
   ]
 end
@@ -306,7 +323,7 @@ to handle-response [_sender message]
 end
 
 to-report calculate_bid [bus_stop]
-  let bid []
+  let bids []
   let _distance 0
   let _passengers length bus_passengers 
   let _capacity get-capacity bus_type
@@ -319,6 +336,7 @@ to-report calculate_bid [bus_stop]
   ;kijken per passenger!
   foreach get-passengers-at-stop bus_stop[
     ;bepaal transfers
+    let pass_id item 0 ?1
     let des item 1 ?1
     let transfer_score -1
     ifelse member? bus_stop own_schedule[
@@ -342,9 +360,10 @@ to-report calculate_bid [bus_stop]
         set transfer_score 0
       ]
     ]
-    set bid lput (transfer_score * 10 + _distance + _passengers / _capacity * 10) bid
+    let score (transfer_score * 10 + _distance + _passengers / _capacity * 10)
+    set bids lput (list pass_id score) bids
   ]
-  report bid
+  report (list bus_stop bids)
 end
 
 to-report calculate-distance [curr dest]
@@ -618,6 +637,7 @@ to init-master-bus
   ;set line_passengers [[0 0] [0 0] [0 0] [0 0] [0 0] [0 0] [0 0]]
   set votes_for [0 0 0 0 0 0 0]
   set votes_responses [0 0 0 0 0 0 0]
+  set biddings [[][][][][][][][][][][][][][][][][][][][][][][][]]
 end
 
 to init-line-15
