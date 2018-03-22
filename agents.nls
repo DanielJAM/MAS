@@ -159,9 +159,10 @@ to handle-request-master [_sender message]
     ;Vraag alle deelnemende bussen om hun bod
     ;Process die bij handle-response-master
     foreach competition[
-      send-message ?1 (list "request" "bidding" bus_stop)
+      let _passengers get-passengers-at-stop bus_stop
+      send-message ?1 (list "request" "bidding" (list bus_stop _passengers))
     ]
-    set biddings replace-item bus_stop (list length competition) biddings
+    set biddings replace-item bus_stop (list length competition _sender) biddings
   ]
 end
 
@@ -198,7 +199,34 @@ to handle-response-master [_sender message]
 
     if _amount_busses_wanted = _amount_busses[
       ;we hebben genoeg binnen!
-
+      let _length length item 1 (item 1 (item _bus_stop biddings))
+      let i 0
+      let winners []
+      while [i < _length][
+        set winners lput 0 winners
+      ]
+      foreach item _bus_stop biddings [
+        if is-list? ?1[
+          let bids item 1 ?1
+          let bus item 0 ?1
+          foreach bids [
+            let _pass_id item 0 ?1
+            let score item 1 ?1
+            let _position position ?1 bids
+            ifelse item _position winners = 0 [
+              set winners replace-item _position (list bus score) winners
+            ][
+              if score > item 1 (item _position winners) [set winners replace-item _position (list bus score _pass_id) winners]
+            ]
+          ]
+        ]
+      ]
+      foreach winners [
+        let winner item 0 ?1
+        let _pass_id item 2 ?1
+        let _position position ?1 winners
+        send-message winner (list "response" "biddings" _pass_id)
+      ]
     ]
   ]
 end
@@ -286,9 +314,11 @@ to handle-request [_sender message]
   ]
 
   if _subject = "bidding" [
-    let bus_stop item 2 message
-    let bid calculate_bid bus_stop
-    send-message _sender (list "response" "bidding" bid)
+    let stop_info item 2 message
+    let bus_stop item 0 stop_info
+    let _passengers item 1 stop_info
+    let bid calculate_bid bus_stop _passengers
+    send-message _sender (list "response" "bidding" (list bus_id bid))
   ]
 end
 
@@ -322,10 +352,10 @@ to handle-response [_sender message]
   ]
 end
 
-to-report calculate_bid [bus_stop]
+to-report calculate_bid [bus_stop passengers_stop]
   let bids []
   let _distance 0
-  let _passengers length bus_passengers
+  let passengers_bus length bus_passengers
   let _capacity get-capacity bus_type
   ifelse current_stop != -1[
     set _distance calculate-distance current_stop bus_stop
@@ -334,7 +364,7 @@ to-report calculate_bid [bus_stop]
   ]
 
   ;kijken per passenger!
-  foreach get-passengers-at-stop bus_stop[
+  foreach passengers_stop[
     ;bepaal transfers
     let pass_id item 0 ?1
     let des item 1 ?1
@@ -360,7 +390,7 @@ to-report calculate_bid [bus_stop]
         set transfer_score 0
       ]
     ]
-    let score (transfer_score * 10 + _distance + _passengers / _capacity * 10)
+    let score (transfer_score * 10 - _distance + passengers_bus / _capacity * 10)
     set bids lput (list pass_id score) bids
   ]
   report (list bus_stop bids)
