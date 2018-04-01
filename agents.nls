@@ -533,14 +533,7 @@ to-report calculate_bid [bus_stop passengers_stop]
     ]
     report (list bus_stop bus_id 0 bids)
   ]
-  let _distance 0
-  let passengers_bus length bus_passengers
-  let _capacity get-capacity bus_type
-  ifelse current_stop != -1[
-    set _distance calculate-distance current_stop bus_stop
-  ][
-    set _distance calculate-distance next_stop bus_stop
-  ]
+
 
   ;kijken per passenger!
   foreach passengers_stop[
@@ -548,8 +541,10 @@ to-report calculate_bid [bus_stop passengers_stop]
     let pass_id item 0 ?1
     let des item 1 ?1
     let transfer_score 0
+    let final_dest 0
     ifelse member? des own_schedule[
       set transfer_score 1
+      set final_dest des
     ][    
       set pos_trans []
       foreach busschedule [
@@ -560,14 +555,11 @@ to-report calculate_bid [bus_stop passengers_stop]
           foreach other_schedule [
             if member? ?1 own_schedule [
               ;transfer possible
+              set transfer ?1
               set pos_trans lput transfer pos_trans
               if member? des other_schedule [
-                ifelse transfer = next_stop[
-                  ;this is the transfer location; don't pick up passenger
-                  set transfer_score -4
-                ][
-                  set transfer_score -1
-                ]
+                set transfer_score -1
+                set final_dest transfer
               ]
             ]
           ]
@@ -590,12 +582,8 @@ to-report calculate_bid [bus_stop passengers_stop]
                 foreach busschedule[
                   if member? second_trans ?1 and member? des ?1 [
                     ;this is an improvement!
-                    ifelse transfer = next_stop[
-                      ;this is the transfer location; don't pick up passenger
-                      set transfer_score -4
-                    ][
-                      set transfer_score -2
-                    ]
+                    set transfer_score -2
+                    set final_dest transfer
                   ]
                 ]
               ]
@@ -603,18 +591,23 @@ to-report calculate_bid [bus_stop passengers_stop]
           ]
         ]
       ]
-      if transfer_score = 0 [
-        set transfer_score -3
-      ]
     ]
-    let capacity_score passengers_bus / _capacity * -1200
+    
+    let _distance 0
+  
+    ifelse current_stop != -1[
+      set _distance calculate-distance current_stop final_dest
+    ][
+      set _distance calculate-distance next_stop final_dest
+    ]
+    
     let score (transfer_score * 1000 - _distance )
-    ;set score _distance + transfer_score * 100
-    ;set score capacity_score
+    
 
     set bids lput (list pass_id score) bids
   ]
-  let space _capacity - passengers_bus
+  let _capacity get-capacity bus_type
+  let space _capacity - occupancy
   report (list bus_stop bus_id space bids)
 end
 
