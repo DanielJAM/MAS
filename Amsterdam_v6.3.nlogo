@@ -7,6 +7,7 @@ bus_stops-own [
   name
   passengers_waiting
   passengers_that_arrived
+  num_passengers_waiting
 ]
 
 routes-own [
@@ -224,6 +225,7 @@ to-report get-distance [bs1 bs2]
 end
 
 to go
+  ask bus_stops [set num_passengers_waiting length passengers_waiting]
   let got_a_tick_error false
   ifelse days = 2
   [
@@ -757,8 +759,10 @@ to-report get-passengers-at-stop [b_s_id]
       foreach passengers_waiting [
         let i item 0 ?
         let p item i passengers
-        if item 6 p = false [
+        ifelse item 6 p = false [
           set information lput ? information
+        ][
+          show p
         ]
       ]
     ]
