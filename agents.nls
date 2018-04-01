@@ -32,7 +32,6 @@ buses-own [
   biddings
   won_passengers
   occupancy
-  
   _leasing_list
 ]
 
@@ -93,7 +92,7 @@ to execute-master
       add-bus 3
     ]
   ]
-  check_mailbox_master
+  check-mailbox-master
   foreach _leasing_list[
     let new_id item 0 ?1
     let schedule_pos item 1 ?1
@@ -103,7 +102,7 @@ to execute-master
   set _leasing_list []
 end
 
-to check_mailbox_master
+to check-mailbox-master
     ;go through inbox
     set creation_count 0
     foreach inbox[
@@ -207,185 +206,192 @@ to handle-response-master [_sender message]
   if _subject = "bidding" [
 
     let _bids item 2 message
-    let _bus_stop item 0 _bids
-    let _amount_busses_wanted item 0 item _bus_stop biddings
+    let bus_stop item 0 _bids
+    let _amount_busses_wanted item 0 item bus_stop biddings
 
-    set biddings replace-item _bus_stop biddings lput _bids item _bus_stop biddings
+    set biddings replace-item bus_stop biddings lput _bids item bus_stop biddings
   
-    let _amount_busses length item _bus_stop biddings - 1
+    let _amount_busses length item bus_stop biddings - 1
 
     if _amount_busses_wanted = _amount_busses[
-      ;we hebben genoeg binnen!
-      let _length length item 3 (item 1 (item _bus_stop biddings))
-      let i 0
-      let firsts []
-      let seconds [] 
-      let thirds []
-      let winners[]
-      while [i < _length][
-        set winners lput [] winners
-        set firsts lput [] firsts
-        set seconds lput [] seconds
-        set thirds lput [] thirds
-        set i (i + 1)
+      evaluate-bids bus_stop
+
+      
+      
+      
+     
+      
+      
+      
+      set biddings replace-item bus_stop biddings []
+    ]
+  ]
+end
+
+to evaluate-bids [bus_stop]
+  ;we hebben genoeg binnen!
+  let num_passengers length item 3 (item 1 (item bus_stop biddings))
+  let i 0
+  let firsts []
+  let seconds [] 
+  let thirds []
+  let winners[]
+  while [i < num_passengers][
+    set winners lput [] winners
+    set firsts lput [] firsts
+    set seconds lput [] seconds
+    set thirds lput [] thirds
+    set i (i + 1)
+  ]
+  let spaces []
+  foreach item bus_stop biddings [
+    if is-list? ?1[
+      let bids item 3 ?1
+      let space item 2 ?1
+      let bus item 1 ?1
+      set spaces lput (list bus space) spaces
+      foreach bids [
+        let _pass_id item 0 ?1
+        let score item 1 ?1
+        let _position position ?1 bids
+        ifelse empty? item _position firsts [
+          set firsts replace-item _position firsts (list bus score _pass_id)
+        ][
+        let _first item _position firsts
+        let cur_score item 1 _first
+        ifelse score > cur_score [
+          set seconds replace-item _position seconds _first
+          set firsts replace-item _position firsts (list bus score _pass_id)
+        ][
+        ifelse empty? item _position seconds[
+          set seconds replace-item _position seconds (list bus score _pass_id)
+        ][
+        let second item _position seconds
+        set cur_score item 1 second
+        ifelse score > cur_score[
+          set thirds replace-item _position thirds second
+          set seconds replace-item _position seconds (list bus score _pass_id)
+        ][
+        ifelse empty? item _position thirds[
+          set thirds replace-item _position thirds (list bus score _pass_id)
+        ][
+        let third item _position thirds
+        set cur_score item 1 third
+        if score > cur_score[
+          set thirds replace-item _position thirds (list bus score _pass_id) 
+        ]]]]]]
       ]
-      let spaces []
-      foreach item _bus_stop biddings [
-        if is-list? ?1[
-          let bids item 3 ?1
-          let space item 2 ?1
-          let bus item 1 ?1
-          set spaces lput (list bus space) spaces
-          foreach bids [
-            let _pass_id item 0 ?1
-            let score item 1 ?1
-            let _position position ?1 bids
-            ifelse empty? item _position firsts [
-              set firsts replace-item _position firsts (list bus score _pass_id)
-            ][
-              let _first item _position firsts
-              let cur_score item 1 _first
-              ifelse score > cur_score [
-                set seconds replace-item _position seconds _first
-                set firsts replace-item _position firsts (list bus score _pass_id)
-              ][
-                ifelse empty? item _position seconds[
-                  set seconds replace-item _position seconds (list bus score _pass_id)
-                ][
-                  let second item _position seconds
-                  set cur_score item 1 second
-                  ifelse score > cur_score[
-                    set thirds replace-item _position thirds second
-                    set seconds replace-item _position seconds (list bus score _pass_id)
-                  ][
-                    ifelse empty? item _position thirds[
-                      set thirds replace-item _position thirds (list bus score _pass_id)
-                    ][
-                      let third item _position thirds
-                      set cur_score item 1 third
-                      if score > cur_score[
-                        set thirds replace-item _position thirds (list bus score _pass_id) 
-                      ]
-                    ]
-                  ]
-                ]
-              ]
-            ]
+    ]
+  ]
+  set i 0
+  let found false
+  while [i < num_passengers][
+    let _first item i firsts
+    let bus item 0 _first
+    foreach spaces[
+      let space_def ?1
+      let space_pos position space_def spaces
+      if item 0 space_def = bus [
+        let space item 1 space_def
+        if space > 0[
+          set space space - 1
+          set spaces replace-item space_pos spaces (list bus space) 
+          set winners replace-item i winners _first
+          set found true
+        ]
+      ]
+    ]
+    if not found [            
+      let second item i seconds
+      set bus item 0 second
+      foreach spaces[
+        let space_def ?1
+        let space_pos position space_def spaces
+        if item 0 space_def = bus [
+          let space item 1 space_def
+          if space > 0[
+            set space space - 1
+            set spaces replace-item space_pos spaces (list bus space) 
+            set winners replace-item i winners second
+            set found true
           ]
         ]
       ]
-      
-      set i 0
-      let eureka false
-      
-      while [i < _length][
-        let _first item i firsts
-        let bus item 0 _first
-        foreach spaces[
-          let space_def ?1
-          let space_pos position space_def spaces
-          if item 0 space_def = bus [
+    ]
+    if not found [
+      let third item i thirds
+      set bus item 0 third
+      foreach spaces[
+        let space_def ?1
+        let space_pos position space_def spaces
+        if item 0 space_def = bus [
+          let space item 1 space_def
+          if space > 0[
+            set space space - 1
+            set spaces replace-item space_pos spaces (list bus space) 
+            set winners replace-item i winners third
+            set found true
+          ]
+        ]
+      ]
+    ]
+    if not found[
+      let busses []
+      let third item i thirds
+      let _pass_id item 2 third
+      foreach spaces[
+        let space_def ?1
+        let space_pos position space_def spaces
+        if item 1 space_def > 0 [
+          set busses lput item 0 space_def busses
+        ]
+        if not empty? busses[
+          let _random item 0 n-of 1 busses
+          
+          set winners replace-item i winners (list _random 0 _pass_id)
+          foreach spaces [
+            set bus item 0 space_def
             let space item 1 space_def
-            if space > 0[
+            if _random = bus[
               set space space - 1
               set spaces replace-item space_pos spaces (list bus space) 
-              set winners replace-item i winners _first
-              set eureka true
             ]
-          ]
-        ]
-        if not eureka [            
-          let second item i seconds
-          set bus item 0 second
-          foreach spaces[
-            let space_def ?1
-            let space_pos position space_def spaces
-            if item 0 space_def = bus [
-              let space item 1 space_def
-              if space > 0[
-                set space space - 1
-                set spaces replace-item space_pos spaces (list bus space) 
-                set winners replace-item i winners second
-                set eureka true
-              ]
-            ]
-          ]
-        ]
-        if not eureka [
-          let third item i thirds
-          set bus item 0 third
-          foreach spaces[
-            let space_def ?1
-            let space_pos position space_def spaces
-            if item 0 space_def = bus [
-              let space item 1 space_def
-              if space > 0[
-                set space space - 1
-                set spaces replace-item space_pos spaces (list bus space) 
-                set winners replace-item i winners third
-                set eureka true
-              ]
-            ]
-          ]
-        ]
-        if not eureka[
-          let busses []
-          let third item i thirds
-          let _pass_id item 2 third
-          foreach spaces[
-            let space_def ?1
-            let space_pos position space_def spaces
-            if item 1 space_def > 0 [
-              set busses lput item 0 space_def busses
-            ]
-            if not empty? busses[
-              let _random item 0 n-of 1 busses
-              
-              set winners replace-item i winners (list _random 0 _pass_id)
-              foreach spaces [
-                set bus item 0 space_def
-                let space item 1 space_def
-                if _random = bus[
-                  set space space - 1
-                  set spaces replace-item space_pos spaces (list bus space) 
-                ]
-              ]
-            ]
-          ]
-        ]
-        set i i + 1
-      ]
-      
-      let results []
-      
-      foreach winners [
-        if not empty? ?1 [
-          let found false
-          let winner item 0 ?1
-          let _pass_id item 2 ?1
-          foreach results [
-            let _position position ?1 results
-            if item 0 ?1 = winner [
-              let tmp item 1 ?1
-              set tmp lput _pass_id tmp
-              set results replace-item _position results (list winner tmp)
-              set found true
-            ]
-          ]
-          if found = false[
-            set results lput (list winner (list _pass_id)) results
           ]
         ]
       ]
+    ]
+    set i i + 1
+  ]
+  announce-winners winners
+end
+
+to announce-winners [winners]
+  let results []
+  
+  foreach winners [
+    if not empty? ?1 [
+      let found false
+      let winner item 0 ?1
+      let _pass_id item 2 ?1
       foreach results [
-        if not empty? ?1 [
-          let winner item 0 ?1
-          let _passengers item 1 ?1
-          send-message winner (list "response" "bidding" _passengers)
+        let _position position ?1 results
+        if item 0 ?1 = winner [
+          let tmp item 1 ?1
+          set tmp lput _pass_id tmp
+          set results replace-item _position results (list winner tmp)
+          set found true
         ]
       ]
-      
-      set biddings replace-item _bus_stop biddings []
+      if found = false[
+        set results lput (list winner (list _pass_id)) results
+      ]
+    ]
+  ]
+  foreach results [
+    if not empty? ?1 [
+      let winner item 0 ?1
+      let _passengers item 1 ?1
+      send-message winner (list "response" "bidding" _passengers)
     ]
   ]
 end
@@ -758,22 +764,12 @@ to get-new-passenger [pass_id des]
     stop
   ]
 
-;  ;other lines pass this bus-stop and have destination?
-;  foreach busschedule [
-;    let other_schedule ?1
-;    if (member? des other_schedule and member? current_stop other_schedule)[
-;      ;wait for other bus.
-;      stop
-;    ]
-;  ]
 
   ;transfer!
   ;check if other lines have connections with current line, so transfer possible
   if get-passenger-one-transfer pass_id des [
     stop
   ]
-
-  ;TODO: check if another bus can pick it up with one transfer
 
   ;double transfer! (is always possible in our schedule)
   if get-passenger-two-transfers pass_id des [
@@ -858,57 +854,61 @@ to execute-actions
       set cur_pos 1
     ]
 
-    ;Are we almost full?
-    let capacity get-capacity bus_type
-    if length bus_passengers > 0.33 * capacity and request-timeout = 0 [
-      ;we are 2/3 full, send message about possible new bus
-
-      ;let _space get-space
-
-      ;send-message master_bus_id (list "request" "investigate" _space)
-      send-message master_bus_id (list "request" "vote")
-
-      set request-timeout 15
-    ]
-    if request-timeout > 0 [
-      set request-timeout request-timeout - 1
-    ]
+    check-vote
 
     ;start moving
-    let next_bus_stop item cur_pos own_schedule
-    travel-to next_bus_stop
+    let nextbus_stop item cur_pos own_schedule
+    travel-to nextbus_stop
 
-    ;update second_next_bus_stop
-    let tmp_cur_pos cur_pos
-    ifelse returning[
-      set tmp_cur_pos tmp_cur_pos - 1
-    ][
-      set tmp_cur_pos tmp_cur_pos + 1
-    ]
-    if tmp_cur_pos > (length own_schedule) - 1[
-      set tmp_cur_pos tmp_cur_pos - 2
-    ]
-    if tmp_cur_pos < 0 [
-      set tmp_cur_pos 1
-    ]
-    let second_next_bus_stop item cur_pos own_schedule
-
-    ;check if bidding is needed  
-    let bus_lines []
-    foreach busschedule[
-      if member? second_next_bus_stop ?1 [
-        let line_pos position ?1 busschedule
-        set bus_lines lput line_pos bus_lines
-      ]
-    ]
-    if length bus_lines > 1[
-      if get-passengers-at-stop second_next_bus_stop != [] [
-        send-message master_bus_id (list "request" "bidding" second_next_bus_stop bus_lines)
-      ]
-    ]
+    check-bid
   ]
   set occupancy length bus_passengers
   check_inbox
+end
+
+to check-vote
+  ;Are we almost full?
+  let capacity get-capacity bus_type
+  if length bus_passengers > 0.33 * capacity and request-timeout = 0 [
+    
+    send-message master_bus_id (list "request" "vote")
+    
+    set request-timeout 15
+  ]
+  if request-timeout > 0 [
+    set request-timeout request-timeout - 1
+  ]
+end
+
+to check-bid
+  ;update second_nextbus_stop
+  let tmp_cur_pos cur_pos
+  ifelse returning[
+    set tmp_cur_pos tmp_cur_pos - 1
+  ][
+  set tmp_cur_pos tmp_cur_pos + 1
+  ]
+  if tmp_cur_pos > (length own_schedule) - 1[
+    set tmp_cur_pos tmp_cur_pos - 2
+  ]
+  if tmp_cur_pos < 0 [
+    set tmp_cur_pos 1
+  ]
+  let second_nextbus_stop item cur_pos own_schedule
+  
+  ;check if bidding is needed  
+  let bus_lines []
+  foreach busschedule[
+    if member? second_nextbus_stop ?1 [
+      let line_pos position ?1 busschedule
+      set bus_lines lput line_pos bus_lines
+    ]
+  ]
+  if length bus_lines > 1[
+    if get-passengers-at-stop second_nextbus_stop != [] [
+      send-message master_bus_id (list "request" "bidding" second_nextbus_stop bus_lines)
+    ]
+  ]
 end
 
 
